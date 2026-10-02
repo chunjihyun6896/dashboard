@@ -20,7 +20,7 @@ if "selected_channel" not in st.session_state:
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 네이버 검색광고 API 설정 및 연동 함수 (경로 수정 완료: /ncc/campaigns)
+# 2. 네이버 검색광고 API 설정 및 연동 함수
 # ==========================================
 CUSTOMER_ID = "2274356"
 ACCESS_LICENSE = (
@@ -52,7 +52,6 @@ def get_naver_header(method, uri):
 
 @st.cache_data(ttl=600)
 def fetch_naver_campaigns():
-  # 🔴 네이버 검색광고 API 올바른 캠페인 조회 경로 (/ncc/campaigns)
   uri = "/ncc/campaigns"
   method = "GET"
   url = BASE_URL + uri
@@ -248,45 +247,63 @@ with col4:
 st.markdown("---")
 
 # ==========================================
-# 7. 네이버 채널 연동 혹은 타 채널 목업 데이터 출력
+# 7. 채널별 상세 성과 리포트 (네이버 실시간 연동 테이블 변환 포함)
 # ==========================================
-if channel_name == "네이버":
-  st.subheader(
-      "🔗 [실시간 연동] 네이버 검색광고 API 캠페인 목록 및 성과 데이터"
+section_col1, section_col2 = st.columns([3, 1])
+
+with section_col1:
+  st.subheader(f"📅 1. [{channel_name}] 상세 성과 리포트")
+
+with section_col2:
+  selected_month = st.selectbox(
+      "조회 월 선택",
+      options=[
+          "1월",
+          "2월",
+          "3월",
+          "4월",
+          "5월",
+          "6월",
+          "7월",
+          "8월",
+          "9월",
+          "10월",
+          "11월",
+          "12월",
+      ],
+      index=0,
   )
 
-  with st.spinner("네이버 광고 서버에서 데이터를 불러오는 중..."):
+if channel_name == "네이버":
+  with st.spinner("네이버 광고 서버에서 캠페인 데이터를 불러오는 중..."):
     naver_data = fetch_naver_campaigns()
 
   if naver_data:
     st.success("✨ 네이버 광고 API 연동 성공!")
-    st.json(naver_data)
+
+    # API로 받아온 캠페인 리스트를 보기 좋은 표(DataFrame)로 변환
+    rows = []
+    for camp in naver_data:
+      rows.append({
+          "캠페인 ID": camp.get("nccCampaignId"),
+          "캠페인명": camp.get("name"),
+          "상태": camp.get("status"),
+          "캠페인 유형": camp.get("campaignTp"),
+          "노출 전략": camp.get("deliveryMethod"),
+          "일예산": (
+              f"{camp.get('dailyBudget', 0):,}원"
+              if camp.get("dailyBudget", 0) > 0
+              else "제한없음"
+          ),
+          "총 소진비용": f"{camp.get('totalChargeCost', 0):,}원",
+      })
+
+    df_naver = pd.DataFrame(rows)
+    st.dataframe(df_naver, hide_index=True, use_container_width=True)
+  else:
+    st.warning("불러올 네이버 캠페인 데이터가 없습니다.")
 
 else:
-  section_col1, section_col2 = st.columns([3, 1])
-
-  with section_col1:
-    st.subheader(f"📅 1. [{channel_name}] 일자별 상세 성과 리포트")
-
-  with section_col2:
-    selected_month = st.selectbox(
-        "조회 월 선택",
-        options=[
-            "1월",
-            "2월",
-            "3월",
-            "4월",
-            "5월",
-            "6월",
-            "7월",
-            "8월",
-            "9월",
-            "10월",
-            "11월",
-            "12월",
-        ],
-        index=0,
-    )
 
   def generate_mock_daily_data(month_str, prefix):
     month_num = int(month_str.replace("월", ""))
