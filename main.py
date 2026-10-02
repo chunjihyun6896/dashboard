@@ -55,7 +55,24 @@ def fetch_naver_campaigns():
   uri = "/ncc/campaigns"
   method = "GET"
   url = BASE_URL + uri
+  params = {"nccAccountId": CUSTOMER_ID}
+  headers = get_naver_header(method, uri)
 
+  try:
+    response = requests.get(url, headers=headers, params=params, timeout=5)
+    if response.status_code == 200:
+      return response.json()
+    else:
+      return None
+  except Exception:
+    return None
+
+
+@st.cache_data(ttl=600)
+def fetch_naver_adgroups():
+  uri = "/ncc/adgroups"
+  method = "GET"
+  url = BASE_URL + uri
   params = {"nccAccountId": CUSTOMER_ID}
   headers = get_naver_header(method, uri)
 
@@ -208,46 +225,44 @@ st.markdown("---")
 # 6. 핵심 지표 요약 (Metric Cards)
 # ==========================================
 if channel_name == "카카오":
-  c1, c2, c3, c4 = "4,400만 원", "14,200만 원", "322.7%", "92.2%"
+  c1, c2, c3, c4 = "0원", "0원", "0.0%", "0.0%"
 elif channel_name == "메타":
-  c1, c2, c3, c4 = "6,200만 원", "21,500만 원", "346.7%", "105.4%"
+  c1, c2, c3, c4 = "0원", "0원", "0.0%", "0.0%"
 elif channel_name == "토스":
-  c1, c2, c3, c4 = "2,800만 원", "8,900만 원", "317.8%", "88.1%"
+  c1, c2, c3, c4 = "0원", "0원", "0.0%", "0.0%"
 else:
-  c1, c2, c3, c4 = "5,100만 원", "17,800만 원", "349.0%", "98.5%"
+  c1, c2, c3, c4 = "0원", "0원", "0.0%", "0.0%"
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
   st.metric(
-      label=f"[{channel_name}] 총 광고비", value=c1, delta="+5% (전월 대비)"
+      label=f"[{channel_name}] 총 광고비", value=c1, delta="0% (전월 대비)"
   )
 with col2:
   st.metric(
-      label=f"[{channel_name}] 총 매출액", value=c2, delta="+8.2% (전월 대비)"
+      label=f"[{channel_name}] 총 매출액", value=c2, delta="0% (전월 대비)"
   )
 with col3:
   st.metric(
-      label=f"[{channel_name}] 평균 ROAS",
-      value=c3,
-      delta="+15.4%p (전월 대비)",
+      label=f"[{channel_name}] 평균 ROAS", value=c3, delta="0.0%p (전월 대비)"
   )
 with col4:
   st.metric(
       label="목표 달성률",
       value=c4,
-      delta="-2.8%p 대비",
+      delta="0.0%p 대비",
       delta_color="inverse",
   )
 
 st.markdown("---")
 
 # ==========================================
-# 7. 채널별 상세 성과 리포트 (실시간 데이터 연동 구조 / 데이터 없으면 0 처리)
+# 7. 채널별 상세 성과 리포트 (데이터 미집행 시 모두 0 처리)
 # ==========================================
 section_col1, section_col2 = st.columns([3, 1])
 
 with section_col1:
-  st.subheader(f"📅 1. [{channel_name}] 일자별 상세 성과 리포트 (실시간 연동)")
+  st.subheader(f"📅 1. [{channel_name}] 일자별 상세 성과 리포트")
 
 with section_col2:
   selected_month = st.selectbox(
@@ -266,71 +281,32 @@ with section_col2:
           "11월",
           "12월",
       ],
-      index=9,  # 기본값 10월 (현재 기준)
+      index=9,
   )
 
 
-# 실시간 API 데이터를 받아오는 함수 (현재 예시에서는 실제 API 응답 데이터를 매핑하되, 데이터가 없으면 0으로 처리)
-def get_realtime_channel_data(channel, month_str):
+def get_zero_channel_data(month_str):
   month_num = int(month_str.replace("월", ""))
   last_day = (
       28 if month_num == 2 else (30 if month_num in [4, 6, 9, 11] else 31)
   )
   dates = [f"2026-{month_num:02d}-{day:02d}" for day in range(1, last_day + 1)]
 
-  # [실제 구현 시] 각 광고 매체(네이버, 카카오 등)의 실시간 API나 DB를 호출하여
-  # 날짜별 실제 소진 비용과 성과를 가져와야 합니다.
-  # 여기서는 실시간 API 응답이 없거나 집행되지 않은 날짜는 모두 '0'으로 처리되도록 구현했습니다.
-
-  realtime_api_data = {}  # 예: API에서 가져온 실제 데이터 딕셔너리 (현재는 비어있음 = 집행 데이터 없음)
-
   data = []
   for d in dates:
-    if d in realtime_api_data:
-      # 실제 데이터가 존재하는 경우
-      cost = realtime_api_data[d]["cost"]
-      impressions = realtime_api_data[d]["impressions"]
-      clicks = realtime_api_data[d]["clicks"]
-      conversions = realtime_api_data[d]["conversions"]
-      rev = realtime_api_data[d]["revenue"]
-      ctr = (clicks / impressions * 100) if impressions > 0 else 0.0
-      roas = (rev / cost * 100) if cost > 0 else 0.0
-
-      data.append({
-          "일자": d,
-          "총비용": f"{cost:,}원",
-          "노출": f"{impressions:,}",
-          "클릭수": f"{clicks:,}",
-          "CTR": f"{ctr:.2f}%",
-          "전환수": f"{conversions}건",
-          "ROAS": f"{roas:.1f}%",
-      })
-    else:
-      # 실제 집행 데이터가 없는 날짜는 임의 값이 아닌 '0'으로 안전하게 표시
-      data.append({
-          "일자": d,
-          "총비용": "0원",
-          "노출": "0",
-          "클릭수": "0",
-          "CTR": "0.00%",
-          "전환수": "0건",
-          "ROAS": "0.0%",
-      })
-
+    data.append({
+        "일자": d,
+        "총비용": "0원",
+        "노출": "0",
+        "클릭수": "0",
+        "CTR": "0.00%",
+        "전환수": "0건",
+        "ROAS": "0.0%",
+    })
   return pd.DataFrame(data)
 
 
-# 네이버 채널일 경우 API 연결 체크
-if channel_name == "네이버":
-  with st.spinner("네이버 광고 서버 실시간 연결 확인 중..."):
-    naver_test = fetch_naver_campaigns()
-  if naver_test is not None:
-    st.success(
-        "✨ 네이버 광고 API 실시간 연동 성공 (데이터가 없는 일자는 0으로"
-        " 표시됩니다)"
-    )
-
-df_daily = get_realtime_channel_data(channel_name, selected_month)
+df_daily = get_zero_channel_data(selected_month)
 st.dataframe(df_daily, hide_index=True, use_container_width=True, height=300)
 
 st.markdown("---")
@@ -338,21 +314,56 @@ st.markdown("---")
 st.subheader(
     f"📂 2. [{channel_name}] 캠페인 그룹별 실시간 소진 내역 ({selected_month})"
 )
-# 그룹별 데이터도 실시간 데이터가 없을 경우 0으로 안전하게 초기화된 상태로 표시
-df_groups = pd.DataFrame({
-    "그룹명": [
-        f"[{current_advertiser_name}] {channel_name}_브랜드_검색캠페인",
-        f"[{current_advertiser_name}] {channel_name}_리타겟팅_전환",
-    ],
-    "상태": ["대기중/미집행", "대기중/미집행"],
-    "총비용": ["0원", "0원"],
-    "노출": ["0", "0"],
-    "클릭수": ["0", "0"],
-    "CTR": ["0.00%", "0.00%"],
-    "전환수": ["0건", "0건"],
-    "ROAS": ["0.0%", "0.0%"],
-})
-st.dataframe(df_groups, hide_index=True, use_container_width=True)
+
+# 네이버 채널일 경우 실제 API의 adgroups 데이터를 조회하여 출력, 없으면 안내 문구 및 0 처리
+if channel_name == "네이버":
+  with st.spinner("네이버 광고 그룹 정보를 실시간 불러오는 중..."):
+    adgroups_data = fetch_naver_adgroups()
+
+  if adgroups_data and len(adgroups_data) > 0:
+    rows = []
+    for group in adgroups_data:
+      rows.append({
+          "그룹명": group.get("name"),
+          "상태": group.get("status"),
+          "총비용": "0원",
+          "노출": "0",
+          "클릭수": "0",
+          "CTR": "0.00%",
+          "전환수": "0건",
+          "ROAS": "0.0%",
+      })
+    df_groups = pd.DataFrame(rows)
+  else:
+    df_groups = pd.DataFrame(columns=[
+        "그룹명",
+        "상태",
+        "총비용",
+        "노출",
+        "클릭수",
+        "CTR",
+        "전환수",
+        "ROAS",
+    ])
+    st.info(
+        "현재 네이버 계정에 등록된 광고 그룹이 없거나 데이터를 불러오지"
+        " 못했습니다."
+    )
+else:
+  df_groups = pd.DataFrame(columns=[
+      "그룹명",
+      "상태",
+      "총비용",
+      "노출",
+      "클릭수",
+      "CTR",
+      "전환수",
+      "ROAS",
+  ])
+  st.info(f"현재 [{channel_name}] 채널에 집행된 실시간 그룹 데이터가 없습니다.")
+
+if not df_groups.empty:
+  st.dataframe(df_groups, hide_index=True, use_container_width=True)
 
 st.markdown("---")
 
@@ -368,7 +379,7 @@ with st.container():
   st.markdown(
       f"""
     > **💡 [{channel_name}] 실시간 운영 진단**
-    > * **데이터 연동 상태**: 현재 선택하신 **{channel_name}** 매체 서버와 실시간 통신 중이며, 광고가 집행되지 않은 구간은 0으로 처리되어 클린하게 표출됩니다.
+    > * **데이터 연동 상태**: 임의의 가상 값을 배제하고, 실제 집행 기록이 없는 구간은 모두 `0`으로 안전하게 표출되고 있습니다.
     """
   )
 
@@ -378,16 +389,10 @@ with st.container():
 
   with tab1:
     st.markdown(
-        f"- **[{channel_name}] 실시간 모니터링**: 라이브 집행 내역이 확인되는"
-        " 즉시 저효율 구간 최적화가 진행됩니다."
+        f"- **[{channel_name}] 모니터링**: 라이브 집행 내역이 확인되는 즉시"
+        " 최적화가 진행됩니다."
     )
   with tab2:
-    st.markdown(
-        "- **예산 최적화**: 성과 데이터가 유입되면 고효율 그룹 중심으로 예산"
-        " 재배분이 제안됩니다."
-    )
+    st.markdown("- **예산 최적화**: 성과 데이터 유입 시 재배분 제안됩니다.")
   with tab3:
-    st.markdown(
-        "- **소재 점검**: 실시간 클릭률과 전환율을 바탕으로 크리에이티브"
-        " 교체 시기를 파악하세요."
-    )
+    st.markdown("- **소재 점검**: 클릭률과 전환율을 바탕으로 교체하세요.")
