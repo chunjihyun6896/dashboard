@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. 커스텀 CSS (사이드바 규격, 로고 1:1 정렬, 텍스트형 버튼 스타일링)
+# 2. 커스텀 CSS (사이드바 규격 및 텍스트 클릭형 스타일링)
 # ==========================================
 st.markdown(
     """
@@ -36,33 +36,49 @@ st.markdown(
         padding: 4px;
     }
     
-    /* 텍스트 클릭형 버튼 기본 스타일 */
-    [data-testid="stSidebar"] div.stButton > button {
-        background-color: transparent !important;
-        border: none !important;
-        color: #94a3b8 !important; /* 기본 비활성 회색 텍스트 */
-        font-size: 14px !important;
-        font-weight: 500 !important;
-        width: 100% !important;
-        text-align: center !important;
-        padding: 6px 0 !important;
-        box-shadow: none !important;
-    }
-    /* 마우스 올렸을 때 */
-    [data-testid="stSidebar"] div.stButton > button:hover {
-        color: #ffffff !important;
-        background-color: rgba(255, 255, 255, 0.05) !important;
+    /* 텍스트 클릭형 메뉴 스타일 */
+    .channel-menu-item {
+        display: block;
+        text-align: center;
+        padding: 10px 0;
+        margin-bottom: 8px;
+        font-size: 14px;
+        text-decoration: none;
         border-radius: 4px;
+        transition: background 0.2s;
+    }
+    /* 기본 비선택 상태 (회색) */
+    .channel-unselected {
+        color: #94a3b8 !important;
+        font-weight: 500;
+    }
+    .channel-unselected:hover {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    /* 선택된 상태 (흰색 + 진하게) */
+    .channel-selected {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        background-color: rgba(255, 255, 255, 0.1);
     }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# 세션 스테이트를 이용해 현재 선택된 채널 관리 (기본값: 카카오)
-if "selected_channel" not in st.session_state:
-  st.session_state.selected_channel = "카카오"
+# 3. 쿼리 파라미터를 활용한 채널 상태 관리 (새로고침해도 선택 상태 유지)
+query_params = st.query_params
+if "channel" in query_params:
+  selected_channel = query_params["channel"]
+  if isinstance(selected_channel, list):
+    selected_channel = selected_channel[0]
+  if selected_channel not in ["카카오", "토스", "메타"]:
+    selected_channel = "카카오"
+else:
+  selected_channel = "카카오"
 
+st.session_state.selected_channel = selected_channel
 
 # 외부 이미지 보안 차단 방지 및 Base64 변환 함수
 @st.cache_data
@@ -79,7 +95,7 @@ def get_base64_image(url):
 
 
 # ==========================================
-# 3. 좌측 미니 사이드바 구성 (로고 + 텍스트 클릭형 메뉴)
+# 4. 좌측 미니 사이드바 구성 (로고 + 텍스트 클릭형 메뉴)
 # ==========================================
 with st.sidebar:
   # 1) 자사 로고 이미지 배치
@@ -100,41 +116,27 @@ with st.sidebar:
       unsafe_allow_html=True,
   )
 
-  # 2) 채널 선택 텍스트 클릭형 버튼 배치 (선택된 채널은 흰색+진하게, 비선택은 회색)
+  # 2) 텍스트 클릭형 메뉴 항목들 (Streamlit의 ?channel= 매개변수 활용)
   channels = ["카카오", "토스", "메타"]
 
   for ch in channels:
-    is_selected = st.session_state.selected_channel == ch
+    is_active = st.session_state.selected_channel == ch
+    css_class = (
+        "channel-menu-item channel-selected"
+        if is_active
+        else "channel-menu-item channel-unselected"
+    )
 
-    # 선택 여부에 따라 HTML 스타일(글자색, 굵기)을 다르게 적용하여 버튼 생성
-    if is_selected:
-      btn_label = f"<span style='color: #ffffff; font-weight: 700;'>{ch}</span>"
-    else:
-      btn_label = f"<span style='color: #94a3b8; font-weight: 500;'>{ch}</span>"
-
-    # st.button 내부에 HTML 적용을 위해 도움말 및 커스텀 마크업 활용
-    if st.button(ch, key=f"btn_{ch}", use_container_width=True):
-      st.session_state.selected_channel = ch
-      st.rerun()  # 클릭 즉시 화면 갱신
-
-    # Streamlit 기본 버튼 텍스트를 위에서 정의한 강조 스타일로 덮어씌우기 위한 CSS 추가 주입
-    if is_selected:
-      st.markdown(
-          f"""
-            <style>
-                div[data-testid="stSidebar"] button[key="btn_{ch}"] {{
-                    color: #ffffff !important;
-                    font-weight: 700 !important;
-                }}
-            </style>
-            """,
-          unsafe_allow_html=True,
-      )
+    # 클릭 시 주소창 파라미터가 바뀌며 즉시 해당 채널로 렌더링됨
+    st.markdown(
+        f'<a href="?channel={ch}" class="{css_class}">{ch}</a>',
+        unsafe_allow_html=True,
+    )
 
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 4. 상단 타이틀 및 우측 광고주 선택 메뉴 배치
+# 5. 상단 타이틀 및 우측 광고주 선택 메뉴 배치
 # ==========================================
 advertisers = {
     "558725": "A 브랜드 (주력 상품군)",
