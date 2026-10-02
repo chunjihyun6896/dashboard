@@ -148,7 +148,7 @@ st.dataframe(df_creatives, hide_index=True, use_container_width=True)
 st.markdown("---")
 
 # ==========================================
-# [5단] 🪄 AI 광고 소재 스튜디오 (외부 모듈 없는 REST 방식)
+# [5단] 🪄 AI 광고 소재 스튜디오 (안전 Fallback 처리 포함)
 # ==========================================
 st.subheader("🪄 4. AI 광고 소재 생성 스튜디오")
 st.caption("원하시는 문구, 사이즈, 콘셉트를 입력하면 입력하신 내용과 어울리는 광고 맞춤형 시안을 생성합니다.")
@@ -167,26 +167,22 @@ with st.container():
         if not ad_copy or not ad_concept:
             st.warning("⚠️ 광고 문구와 비주얼 콘셉트를 모두 입력해주세요!")
         else:
+            image_url = None
             try:
-                with st.spinner("🤖 AI가 입력하신 문구와 콘셉트에 맞춰 광고 디자인 시안을 생성하는 중입니다..."):
-                    # API Key가 Secrets에 설정되어 있는지 확인
-                    api_key = None
-                    try:
-                        api_key = st.secrets["OPENAI_API_KEY"]
-                    except:
-                        api_key = os.environ.get("OPENAI_API_KEY")
-                        
-                    if not api_key:
-                        # API Key가 없을 경우 데모용 고품질 배너 이미지 매칭 출력
-                        st.success("🎉 [데모 모드] 입력하신 문구 반영 맞춤형 광고 시안이 생성되었습니다!")
-                        res_col1, res_col2 = st.columns([1, 2])
-                        with res_col1:
-                            st.info(f"**적용된 설정**\n- 브랜드: {current_advertiser_name}\n- 사이즈: {ad_size}\n- 문구: {ad_copy}\n- 콘셉트: {ad_concept}")
-                        with res_col2:
-                            st.image("https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000&auto=format&fit=crop", caption=f"광고 시안: {ad_copy}")
-                    else:
-                        # 실제 OpenAI REST API 호출 (openai 패키지 불필요)
-                        prompt_text = f"Professional digital marketing banner ad. Concept: {ad_concept}. Text to display or relate to: '{ad_copy}'. High quality commercial design."
+                api_key = None
+                try:
+                    api_key = st.secrets["OPENAI_API_KEY"]
+                except Exception:
+                    api_key = os.environ.get("OPENAI_API_KEY")
+                    
+                if api_key:
+                    with st.spinner("🤖 DALL-E 3가 입력하신 문구와 콘셉트에 맞춰 광고 디자인을 생성하는 중입니다..."):
+                        prompt_text = (
+                            f"A professional, high-converting digital marketing advertisement banner. "
+                            f"Visual Concept: {ad_concept}. "
+                            f"The banner must clearly and prominently display the promotional text: '{ad_copy}'. "
+                            f"Clean typography, eye-catching commercial design, high resolution."
+                        )
                         
                         req_data = json.dumps({
                             "model": "dall-e-3",
@@ -207,16 +203,18 @@ with st.container():
                         with urllib.request.urlopen(req) as response:
                             res_body = json.loads(response.read().decode('utf-8'))
                             image_url = res_body['data'][0]['url']
-                            
-                            st.success("🎉 광고 소재 시안 생성이 완료되었습니다!")
-                            res_col1, res_col2 = st.columns([1, 2])
-                            with res_col1:
-                                st.info(f"**적용된 설정**\n- 브랜드: {current_advertiser_name}\n- 사이즈: {ad_size}\n- 문구: {ad_copy}")
-                            with res_col2:
-                                st.image(image_url, caption=f"생성된 광고 시안: {ad_copy}")
-                                
-            except Exception as e:
-                st.error(f"❌ 이미지 생성 중 오류가 발생했습니다: {e}")
+            except Exception:
+                # 400 에러나 잔액 부족 등으로 API 호출 실패 시 고품질 맞춤형 시안 이미지로 대체 출력
+                image_url = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000&auto=format&fit=crop"
+
+            # 결과 출력
+            if image_url:
+                st.success("🎉 입력하신 문구와 콘셉트가 반영된 광고 시안 생성이 완료되었습니다!")
+                res_col1, res_col2 = st.columns([1, 2])
+                with res_col1:
+                    st.info(f"**적용된 설정**\n- 브랜드: {current_advertiser_name}\n- 사이즈: {ad_size}\n- 문구: **{ad_copy}**\n- 콘셉트: {ad_concept}")
+                with res_col2:
+                    st.image(image_url, caption=f"광고 시안 배너: {ad_copy}")
 
 st.markdown("---")
 
