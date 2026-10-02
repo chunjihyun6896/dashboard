@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. 페이지 기본 설정 (와이드 모드)
+# 1. 페이지 기본 설정 (와이드 모드, 사이드바 항상 펼쳐짐 고정)
 st.set_page_config(
     page_title="마케팅 성과 대시보드",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # ==========================================
@@ -14,14 +15,12 @@ st.set_page_config(
 # ==========================================
 st.sidebar.header("⚙️ 광고 계정 관리")
 
-# 관리 중인 광고주 리스트 (ID와 이름 매핑)
 advertisers = {
     "558725": "A 브랜드 (주력 상품군)",
     "889922": "B 브랜드 (신규 런칭군)",
     "774411": "C 브랜드 (글로벌 라인)"
 }
 
-# 사이드바에서 광고주 선택
 selected_id = st.sidebar.selectbox(
     "분석할 광고주를 선택하세요",
     options=list(advertisers.keys()),
@@ -81,8 +80,8 @@ with chart_col1:
     fig.add_vline(x=350, line_dash="dash", line_color="gray", annotation_text="목표 350%", annotation_position="bottom right")
 
     fig.update_layout(
-        xaxis=dict(range=[0, 450], showgrid=True),
-        yaxis=dict(autorange="reversed"),
+        xaxis=dict(range=[0, 450], showgrid=True, fixedrange=True),  # X축 확대/축소 고정
+        yaxis=dict(autorange="reversed", fixedrange=True),           # Y축 확대/축소 고정
         margin=dict(l=10, r=10, t=10, b=10),
         height=250,
         showlegend=False,
@@ -90,8 +89,11 @@ with chart_col1:
         paper_bgcolor="rgba(0,0,0,0)"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
-    st.info("ℹ️️ *카카오는 지난주 전환값이 2일 비어 있어 지난주 값이 실제보다 낮을 수 있습니다. 빈 날을 빼면 지난주 211.8%입니다.")
+    # 그래프 확대/축소 툴바를 완전히 숨기는 설정 적용
+    config_settings = {'displayModeBar': False}
+    st.plotly_chart(fig, use_container_width=True, config=config_settings)
+    
+    st.info("ℹ️ *카카오는 지난주 전환값이 2일 비어 있어 지난주 값이 실제보다 낮을 수 있습니다. 빈 날을 빼면 지난주 211.8%입니다.")
 
 with chart_col2:
     st.subheader("🥧 이번 주 매체별 광고비 비중")
