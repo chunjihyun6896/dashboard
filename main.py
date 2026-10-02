@@ -20,7 +20,7 @@ if "selected_channel" not in st.session_state:
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 네이버 검색광고 API 설정 및 연동 함수
+# 2. 네이버 검색광고 API 설정 및 연동 함수 (에러 상세 출력 기능 포함)
 # ==========================================
 CUSTOMER_ID = "2274356"
 ACCESS_LICENSE = (
@@ -50,7 +50,7 @@ def get_naver_header(method, uri):
   }
 
 
-@st.cache_data(ttl=600)  # 10분 동안 데이터 캐싱
+@st.cache_data(ttl=600)
 def fetch_naver_campaigns():
   uri = "/campaigns"
   method = "GET"
@@ -62,8 +62,14 @@ def fetch_naver_campaigns():
     if response.status_code == 200:
       return response.json()
     else:
+      # 🔴 네이버 API 실패 시 상세 에러코드와 메시지를 화면에 출력
+      st.error(
+          f"네이버 API 오류 발생! (상태 코드: {response.status_code})"
+      )
+      st.code(response.text)
       return None
-  except Exception:
+  except Exception as e:
+    st.error(f"네트워크 예외 발생: {e}")
     return None
 
 
@@ -145,7 +151,7 @@ def get_base64_image(url):
 
 
 # ==========================================
-# 4. 좌측 미니 사이드바 구성 (채널에 네이버 추가)
+# 4. 좌측 미니 사이드바 구성 (채널 선택)
 # ==========================================
 with st.sidebar:
   logo_url = "https://postfiles.pstatic.net/MjAyNjEwMDJfMTk3/MDAxNzkwOTI2NjI1NDQ3.onXBC4S3HbypXqgaIBTI9nkbxszhk00IW9KGCVlcXmEg.bpswq-tDbouId6KoFEK7PUFcMZCE8VkQ3_oKcqkIDc8g.JPEG/KakaoTalk_20261002_100449413_01.jpg?type=w966"
@@ -165,7 +171,6 @@ with st.sidebar:
       unsafe_allow_html=True,
   )
 
-  # 채널 목록에 '네이버' 추가 완료!
   channels = ["카카오", "토스", "메타", "네이버"]
 
   for ch in channels:
@@ -210,9 +215,9 @@ if channel_name == "카카오":
   c1, c2, c3, c4 = "4,400만 원", "14,200만 원", "322.7%", "92.2%"
 elif channel_name == "메타":
   c1, c2, c3, c4 = "6,200만 원", "21,500만 원", "346.7%", "105.4%"
-elif channel_name == "토ส":
+elif channel_name == "토스":
   c1, c2, c3, c4 = "2,800만 원", "8,900만 원", "317.8%", "88.1%"
-else:  # 네이버 선택 시
+else:
   c1, c2, c3, c4 = "5,100만 원", "17,800만 원", "349.0%", "98.5%"
 
 col1, col2, col3, col4 = st.columns(4)
@@ -241,7 +246,7 @@ with col4:
 st.markdown("---")
 
 # ==========================================
-# 7. 네이버 채널일 경우 실제 API 데이터 연동 표시, 타 채널은 기존 목업 데이터
+# 7. 네이버 채널 연동 혹은 타 채널 목업 데이터 출력
 # ==========================================
 if channel_name == "네이버":
   st.subheader(
@@ -253,16 +258,9 @@ if channel_name == "네이버":
 
   if naver_data:
     st.success("✨ 네이버 광고 API 연동 성공!")
-    # 실제 네이버 API 응답 데이터를 화면에 출력
     st.json(naver_data)
-  else:
-    st.error(
-        "네이버 광고 데이터를 불러오지 못했습니다. 네트워크 상태나 API 키를"
-        " 확인해주세요."
-    )
 
 else:
-  # 기존 카카오/토스/메타 화면 구성 (일자별 / 캠페인별 테이블)
   section_col1, section_col2 = st.columns([3, 1])
 
   with section_col1:
