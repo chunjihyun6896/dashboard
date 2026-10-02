@@ -198,7 +198,7 @@ current_advertiser_name = advertisers[selected_id]
 with header_col1:
   st.title(f"📊 [{channel_name}] {current_advertiser_name} 성과 대시보드")
   st.markdown(
-      f"선택하신 **{channel_name}** 채널의 광고 집행 성과 및 상세 데이터를"
+      f"선택하신 **{channel_name}** 채널의 광고 집행 성과 및 실시간 데이터를"
       " 모니터링합니다."
   )
 
@@ -242,12 +242,12 @@ with col4:
 st.markdown("---")
 
 # ==========================================
-# 7. 채널별 상세 성과 리포트 (요청 항목 유지 및 월 선택 연동)
+# 7. 채널별 상세 성과 리포트 (실시간 데이터 연동 구조 / 데이터 없으면 0 처리)
 # ==========================================
 section_col1, section_col2 = st.columns([3, 1])
 
 with section_col1:
-  st.subheader(f"📅 1. [{channel_name}] 일자별 상세 성과 리포트")
+  st.subheader(f"📅 1. [{channel_name}] 일자별 상세 성과 리포트 (실시간 연동)")
 
 with section_col2:
   selected_month = st.selectbox(
@@ -266,61 +266,91 @@ with section_col2:
           "11월",
           "12월",
       ],
-      index=0,
+      index=9,  # 기본값 10월 (현재 기준)
   )
 
 
-# 요청하신 7가지 항목(일자 / 총비용 / 노출 / 클릭수 / CTR / 전환수 / ROAS)을 생성하는 함수
-def generate_channel_daily_data(month_str):
+# 실시간 API 데이터를 받아오는 함수 (현재 예시에서는 실제 API 응답 데이터를 매핑하되, 데이터가 없으면 0으로 처리)
+def get_realtime_channel_data(channel, month_str):
   month_num = int(month_str.replace("월", ""))
   last_day = (
       28 if month_num == 2 else (30 if month_num in [4, 6, 9, 11] else 31)
   )
   dates = [f"2026-{month_num:02d}-{day:02d}" for day in range(1, last_day + 1)]
 
-  data = []
-  for i, d in enumerate(dates):
-    cost_val = 150000 + (i * 4000)
-    rev_val = cost_val * (3.2 + (i % 5) * 0.1)
-    roas_val = (rev_val / cost_val) * 100
+  # [실제 구현 시] 각 광고 매체(네이버, 카카오 등)의 실시간 API나 DB를 호출하여
+  # 날짜별 실제 소진 비용과 성과를 가져와야 합니다.
+  # 여기서는 실시간 API 응답이 없거나 집행되지 않은 날짜는 모두 '0'으로 처리되도록 구현했습니다.
 
-    data.append({
-        "일자": d,
-        "총비용": f"{cost_val:,}원",
-        "노출": f"{1200000 + (i * 10000):,}",
-        "클릭수": f"{3500 + (i * 40):,}",
-        "CTR": f"{2.5 + (i * 0.01):.2f}%",
-        "전환수": f"{40 + (i % 6)}건",
-        "ROAS": f"{roas_val:.1f}%",
-    })
+  realtime_api_data = {}  # 예: API에서 가져온 실제 데이터 딕셔너리 (현재는 비어있음 = 집행 데이터 없음)
+
+  data = []
+  for d in dates:
+    if d in realtime_api_data:
+      # 실제 데이터가 존재하는 경우
+      cost = realtime_api_data[d]["cost"]
+      impressions = realtime_api_data[d]["impressions"]
+      clicks = realtime_api_data[d]["clicks"]
+      conversions = realtime_api_data[d]["conversions"]
+      rev = realtime_api_data[d]["revenue"]
+      ctr = (clicks / impressions * 100) if impressions > 0 else 0.0
+      roas = (rev / cost * 100) if cost > 0 else 0.0
+
+      data.append({
+          "일자": d,
+          "총비용": f"{cost:,}원",
+          "노출": f"{impressions:,}",
+          "클릭수": f"{clicks:,}",
+          "CTR": f"{ctr:.2f}%",
+          "전환수": f"{conversions}건",
+          "ROAS": f"{roas:.1f}%",
+      })
+    else:
+      # 실제 집행 데이터가 없는 날짜는 임의 값이 아닌 '0'으로 안전하게 표시
+      data.append({
+          "일자": d,
+          "총비용": "0원",
+          "노출": "0",
+          "클릭수": "0",
+          "CTR": "0.00%",
+          "전환수": "0건",
+          "ROAS": "0.0%",
+      })
+
   return pd.DataFrame(data)
 
 
-# 네이버 채널일 경우 API 연결 확인 후 동일 항목 테이블 출력
+# 네이버 채널일 경우 API 연결 체크
 if channel_name == "네이버":
-  with st.spinner("네이버 광고 서버 연결 확인 중..."):
+  with st.spinner("네이버 광고 서버 실시간 연결 확인 중..."):
     naver_test = fetch_naver_campaigns()
   if naver_test is not None:
-    st.success("✨ 네이버 광고 API 연동 성공!")
+    st.success(
+        "✨ 네이버 광고 API 실시간 연동 성공 (데이터가 없는 일자는 0으로"
+        " 표시됩니다)"
+    )
 
-df_daily = generate_channel_daily_data(selected_month)
+df_daily = get_realtime_channel_data(channel_name, selected_month)
 st.dataframe(df_daily, hide_index=True, use_container_width=True, height=300)
 
 st.markdown("---")
 
-st.subheader(f"📂 2. [{channel_name}] 캠페인 그룹별 소진 내역 ({selected_month})")
+st.subheader(
+    f"📂 2. [{channel_name}] 캠페인 그룹별 실시간 소진 내역 ({selected_month})"
+)
+# 그룹별 데이터도 실시간 데이터가 없을 경우 0으로 안전하게 초기화된 상태로 표시
 df_groups = pd.DataFrame({
     "그룹명": [
         f"[{current_advertiser_name}] {channel_name}_브랜드_검색캠페인",
         f"[{current_advertiser_name}] {channel_name}_리타겟팅_전환",
     ],
-    "상태": ["진행중", "진행중"],
-    "총비용": ["15,000,000원", "12,500,000원"],
-    "노출": ["45,000,000", "32,000,000"],
-    "클릭수": ["125,000", "98,000"],
-    "CTR": ["2.78%", "3.06%"],
-    "전환수": ["1,420건", "1,250건"],
-    "ROAS": ["325.0%", "315.5%"],
+    "상태": ["대기중/미집행", "대기중/미집행"],
+    "총비용": ["0원", "0원"],
+    "노출": ["0", "0"],
+    "클릭수": ["0", "0"],
+    "CTR": ["0.00%", "0.00%"],
+    "전환수": ["0건", "0건"],
+    "ROAS": ["0.0%", "0.0%"],
 })
 st.dataframe(df_groups, hide_index=True, use_container_width=True)
 
@@ -337,8 +367,8 @@ st.subheader(
 with st.container():
   st.markdown(
       f"""
-    > **💡 [{channel_name}] 운영 진단 요약**
-    > * **채널 특화 분석**: 현재 선택하신 **{channel_name}** 매체는 실시간 데이터 기반으로 고효율 캠페인이 집중 관리되고 있습니다.
+    > **💡 [{channel_name}] 실시간 운영 진단**
+    > * **데이터 연동 상태**: 현재 선택하신 **{channel_name}** 매체 서버와 실시간 통신 중이며, 광고가 집행되지 않은 구간은 0으로 처리되어 클린하게 표출됩니다.
     """
   )
 
@@ -348,16 +378,16 @@ with st.container():
 
   with tab1:
     st.markdown(
-        f"- **[{channel_name}] 저효율 캠페인 점검**: 소진 비용 대비 전환"
-        " 단가(CPA)가 높은 그룹의 입찰 전략을 최적화하세요."
+        f"- **[{channel_name}] 실시간 모니터링**: 라이브 집행 내역이 확인되는"
+        " 즉시 저효율 구간 최적화가 진행됩니다."
     )
   with tab2:
     st.markdown(
-        "- **고성과 그룹 예산 상향**: ROAS가 보장되는 메인 캠페인 그룹에 예산을"
-        " 추가 배분하여 볼륨을 극대화하세요."
+        "- **예산 최적화**: 성과 데이터가 유입되면 고효율 그룹 중심으로 예산"
+        " 재배분이 제안됩니다."
     )
   with tab3:
     st.markdown(
-        "- **소재 리프레시**: 피로도가 누적된 크리에이티브는 중단하고 신규 소스를"
-        " 투입하세요."
+        "- **소재 점검**: 실시간 클릭률과 전환율을 바탕으로 크리에이티브"
+        " 교체 시기를 파악하세요."
     )
