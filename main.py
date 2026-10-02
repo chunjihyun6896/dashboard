@@ -31,7 +31,7 @@ current_advertiser_name = advertisers[selected_id]
 
 with header_col1:
     st.title(f"📊 {current_advertiser_name} ({selected_id}) 카카오 대시보드")
-    st.markdown("월별 광고 집행 성과 및 일자별 상세 데이터를 모니터링하는 대시보드입니다.")
+    st.markdown("월별 광고 집행 성과 및 일자별·그룹별·소재별 상세 데이터를 모니터링하는 대시보드입니다.")
 
 st.markdown("---")
 
@@ -50,28 +50,23 @@ with col4:
 st.markdown("---")
 
 # ==========================================
-# [2단] 월별 선택 드롭박스 및 일자별 데이터 테이블 섹션
+# [2단] 월별 선택 드롭박스 및 일자별 데이터 테이블
 # ==========================================
 section_col1, section_col2 = st.columns([3, 1])
 
 with section_col1:
-    st.subheader("📅 일자별 상세 성과 리포트")
+    st.subheader("📅 1. 일자별 상세 성과 리포트")
 
 with section_col2:
-    # 우측 상단 월 선택 드롭박스
     selected_month = st.selectbox(
         "조회 월 선택",
         options=["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
-        index=0  # 기본 1월 선택
+        index=0
     )
 
-# 예시용 샘플 데이터 생성 (실제 API 연동 시 해당 월 데이터로 교체됨)
-# 1월 선택 시 1월 1일 ~ 1월 31일 데이터 시뮬레이션
 def generate_mock_daily_data(month_str):
     month_num = int(month_str.replace("월", ""))
-    # 월에 따른 마지막 날짜 대략 설정 (2월은 28일, 31일 달 등)
     last_day = 28 if month_num == 2 else (30 if month_num in [4, 6, 9, 11] else 31)
-    
     dates = [f"2026-{month_num:02d}-{day:02d}" for day in range(1, last_day + 1)]
     
     data = []
@@ -93,43 +88,86 @@ def generate_mock_daily_data(month_str):
     return pd.DataFrame(data)
 
 df_daily = generate_mock_daily_data(selected_month)
-
-# 테이블 출력 (항목: 일자 / 총비용 / 노출 / 클릭수 / ctr / 전환수)
-st.dataframe(
-    df_daily, 
-    hide_index=True, 
-    use_container_width=True,
-    height=400
-)
+st.dataframe(df_daily, hide_index=True, use_container_width=True, height=300)
 
 st.markdown("---")
 
-# [3단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
+# ==========================================
+# [3단] 그룹(캠페인)별 소진 내역 테이블
+# ==========================================
+st.subheader(f"📂 2. 그룹별 소진 내역 ({selected_month})")
+st.caption("캠페인(광고 그룹) 단위의 집행 성과 요약")
+
+df_groups = pd.DataFrame({
+    '그룹명': [
+        f"[{current_advertiser_name}] 브랜드_검색광고_A형",
+        f"[{current_advertiser_name}] 리타겟팅_전환캠페인",
+        f"[{current_advertiser_name}] 신규유저_타겟오디언스",
+        f"[{current_advertiser_name}] 프로모션_기획전_배너"
+    ],
+    '상태': ["진행중", "진행중", "일시정지", "진행중"],
+    '총비용': ["15,000,000원", "12,500,000원", "8,000,000원", "8,500,000원"],
+    '노출': ["45,000,000", "32,000,000", "15,000,000", "22,000,000"],
+    '클릭수': ["125,000", "98,000", "34,000", "67,000"],
+    'CTR': ["2.78%", "3.06%", "2.26%", "3.04%"],
+    '전환수': ["1,420건", "1,250건", "410건", "890건"]
+})
+
+st.dataframe(df_groups, hide_index=True, use_container_width=True)
+
+st.markdown("---")
+
+# ==========================================
+# [4단] 소재별 소진 내역 테이블
+# ==========================================
+st.subheader(f"🎨 3. 소재별 소진 내역 ({selected_month})")
+st.caption("개별 크리에이티브(이미지/영상) 단위의 집행 성과 요약")
+
+df_creatives = pd.DataFrame({
+    '소재명': [
+        "이미지_메인배너_리사이징_v1.jpg",
+        "영상_유튜브쇼츠형_퍼포먼스_v2.mp4",
+        "이미지_제품단독_클로즈업_v3.jpg",
+        "이미지_할인혜택_고지형_v1.jpg",
+        "영상_브랜드스토리_인터뷰_v1.mp4"
+    ],
+    '집행기간': ["01.01 ~ 01.31", "01.05 ~ 01.25", "01.10 ~ 01.31", "01.15 ~ 01.31", "01.01 ~ 01.15"],
+    '총비용': ["12,000,000원", "10,500,000원", "9,000,000원", "7,500,000원", "6,000,000원"],
+    '노출': ["38,000,000", "28,000,000", "21,000,000", "18,000,000", "9,500,000"],
+    '클릭수': ["110,000", "92,000", "58,000", "49,000", "21,000"],
+    'CTR': ["2.89%", "3.28%", "2.76%", "2.72%", "2.21%"],
+    '전환수': ["1,200건", "1,150건", "620건", "510건", "200건"]
+})
+
+st.dataframe(df_creatives, hide_index=True, use_container_width=True)
+
+st.markdown("---")
+
+# [5단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
 st.subheader(f"🤖 AI 퍼포먼스 마케팅 인사이트 & 액션 제안 ({current_advertiser_name} - {selected_month})")
 
 with st.container():
     st.markdown(f"""
-    > **💡 [{current_advertiser_name}] {selected_month} 성과 진단 요약**
-    > * **종합 평가**: 선택하신 {selected_month} 기간 동안의 일자별 트래픽과 비용 소진 추이를 분석한 결과, 안정적인 유입과 전환 효율을 보이고 있습니다.
-    > * **효율 최적화 포인트**: 중순 이후 클릭수와 CTR이 상승하는 구간의 크리에이티브 집행 방식을 타 기간에도 확대 적용하는 것을 권장합니다.
+    > **💡 [{current_advertiser_name}] {selected_month} 계층별 진단 요약**
+    > * **일자/그룹/소재 종합 평가**: 선택하신 {selected_month 기간} 동안 그룹별 소진 내역과 크리에이티브 효율을 교차 분석한 결과, 고효율 소재를 활용한 리타겟팅 그룹의 전환수 기여도가 가장 높게 나타났습니다.
     """)
     
     tab1, tab2, tab3 = st.tabs(["🚨 긴급 개선점", "💰 예산 재배분 제안", "🎨 크리에이티브 전략"])
     
     with tab1:
         st.markdown("""
-        - **일자별 예산 소진 모니터링**: 
-          - 특정 주말 기간 동안 노출 대비 클릭 효율이 일시적으로 낮아지는 현상이 관측되어 타겟 입찰가 조정을 검토해야 합니다.
+        - **저효율 그룹 점검**: 
+          - 소진 비용 대비 전환율이 정체된 그룹의 오디언스 타겟 설정을 재점검하고 입찰가를 최적화하세요.
         """)
         
     with tab2:
         st.markdown("""
-        - **효율 우수 일자 예산 집중**: 
-          - 전환수가 높게 집계된 일자 패턴을 분석하여 해당 요일/시간대에 예산을 집중 배분하는 전략이 유효합니다.
+        - **고성과 그룹 예산 상향**: 
+          - ROAS와 전환수가 안정적으로 확보되는 메인 캠페인 그룹에 예산을 추가 배분하여 볼륨을 키우는 전략을 제안합니다.
         """)
         
     with tab3:
         st.markdown("""
-        - **고성과 소재 유지**: 
-          - CTR이 꾸준히 3% 이상 유지되는 상위 광고 소재의 노출 볼륨을 유지하고, 피로도가 쌓이는 시점의 대체 소재를 준비하세요.
+        - **소재 리프레시**: 
+          - CTR이 2.5% 이하로 떨어진 피로도 누적 소재는 중단하고, 고효율 소재인 `영상_유튜브쇼츠형_퍼포먼스_v2.mp4` 계열의 후속 베리언트를 제작하세요.
         """)
