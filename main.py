@@ -15,81 +15,111 @@ if "selected_channel" not in st.session_state:
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 커스텀 CSS (선택된 메뉴 동적 강조 스타일링 포함)
+# 2. 커스텀 CSS (기본 흰색 텍스트 및 선택 시 흰색 배경 + 검정 볼드체 처리)
 # ==========================================
-# 선택된 채널에 따라 해당 버튼만 글씨를 하얗고 진하게 만드는 동적 CSS
-selected_kakao_css = (
-    "font-weight: 700 !important; color: #ffffff !important;"
-    if channel_name == "카카오"
-    else "font-weight: 500 !important; color: #94a3b8 !important;"
-)
-selected_toss_css = (
-    "font-weight: 700 !important; color: #ffffff !important;"
-    if channel_name == "토스"
-    else "font-weight: 500 !important; color: #94a3b8 !important;"
-)
-selected_meta_css = (
-    "font-weight: 700 !important; color: #ffffff !important;"
-    if channel_name == "메타"
-    else "font-weight: 500 !important; color: #94a3b8 !important;"
-)
-
 st.markdown(
-    f"""
+    """
 <style>
     /* 기본 사이드바 너비를 좁게 설정 및 어두운 남색 배경 적용 */
-    [data-testid="stSidebar"] {{
+    [data-testid="stSidebar"] {
         background-color: #1e293b;
         min-width: 90px !important;
         max-width: 90px !important;
-    }}
+    }
     /* 사이드바 내부 여백 및 패딩 최소화 */
-    [data-testid="stSidebar"] > div:first-child {{
+    [data-testid="stSidebar"] > div:first-child {
         padding-top: 1rem;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
-    }}
+    }
     /* 사이드바 로고 이미지를 1:1 비율 및 규격에 맞게 조정 */
-    [data-testid="stSidebar"] img {{
+    [data-testid="stSidebar"] img {
         width: 100% !important;
         aspect-ratio: 1 / 1 !important;
         object-fit: contain !important;
         border-radius: 6px;
         background-color: #ffffff;
         padding: 4px;
-    }}
+    }
     
-    /* Streamlit 버튼 스타일 완전 초기화 (배경, 테두리, 그림자 제거) */
-    [data-testid="stSidebar"] div.stButton > button {{
+    /* Streamlit 기본 버튼 스타일 초기화 및 기본 상태 설정 (흰색 글씨) */
+    [data-testid="stSidebar"] div.stButton > button {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
         width: 100% !important;
         text-align: center !important;
-        padding: 6px 0 !important;
-        margin-bottom: 4px;
-    }}
+        padding: 8px 0 !important;
+        margin-bottom: 6px;
+        border-radius: 6px;
+    }
     
-    /* 기본 텍스트 스타일 (비선택 시 회색) */
-    [data-testid="stSidebar"] div.stButton > button p {{
-        font-size: 14px !important;
-        text-decoration: none !important;
-    }}
-    
-    /* 마우스 올렸을 때 텍스트 하얗게 */
-    [data-testid="stSidebar"] div.stButton > button:hover p {{
+    /* 기본 버튼 안의 텍스트 색상을 흰색으로 고정 */
+    [data-testid="stSidebar"] div.stButton > button p {
         color: #ffffff !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
         text-decoration: none !important;
-    }}
+    }
+    
+    /* 마우스 올렸을 때 살짝 밝은 배경 효과 */
+    [data-testid="stSidebar"] div.stButton > button:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
 
-    /* 각 버튼별 선택 상태 반영 */
-    div[data-testid="stSidebar"] button[key="btn_카카오"] p {{ {selected_kakao_css} }}
-    div[data-testid="stSidebar"] button[key="btn_토스"] p {{ {selected_toss_css} }}
-    div[data-testid="stSidebar"] button[key="btn_메타"] p {{ {selected_meta_css} }}
-</style>
+    /* ==========================================
+       선택된 메뉴 전용 스타일 (흰색 배경 + 검정 볼드체)
+       ========================================== */
 """,
     unsafe_allow_html=True,
 )
+
+# 현재 선택된 채널에 따라 해당 버튼에만 흰색 배경과 검정 볼드체 적용
+if channel_name == "카카오":
+  st.markdown(
+      """
+        <style>
+            div[data-testid="stSidebar"] button[key="btn_카카오"] {
+                background-color: #ffffff !important;
+            }
+            div[data-testid="stSidebar"] button[key="btn_카카오"] p {
+                color: #000000 !important;
+                font-weight: 700 !important;
+            }
+        </style>
+        """,
+      unsafe_allow_html=True,
+  )
+elif channel_name == "토스":
+  st.markdown(
+      """
+        <style>
+            div[data-testid="stSidebar"] button[key="btn_토스"] {
+                background-color: #ffffff !important;
+            }
+            div[data-testid="stSidebar"] button[key="btn_토스"] p {
+                color: #000000 !important;
+                font-weight: 700 !important;
+            }
+        </style>
+        """,
+      unsafe_allow_html=True,
+  )
+elif channel_name == "메타":
+  st.markdown(
+      """
+        <style>
+            div[data-testid="stSidebar"] button[key="btn_메타"] {
+                background-color: #ffffff !important;
+            }
+            div[data-testid="stSidebar"] button[key="btn_메타"] p {
+                color: #000000 !important;
+                font-weight: 700 !important;
+            }
+        </style>
+        """,
+      unsafe_allow_html=True,
+  )
 
 
 # 외부 이미지 보안 차단 방지 및 Base64 변환 함수
