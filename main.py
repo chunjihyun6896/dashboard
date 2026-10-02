@@ -52,17 +52,23 @@ def get_naver_header(method, uri):
 
 @st.cache_data(ttl=600)
 def fetch_naver_campaigns():
+  # 네이버 검색광고 API 캠페인 조회 올바른 경로 및 파라미터
   uri = "/campaigns"
   method = "GET"
   url = BASE_URL + uri
+
+  # 네이버 API는 쿼리스트링으로 nccAccountId를 요구합니다.
+  params = {"nccAccountId": CUSTOMER_ID}
+
+  # 서명 생성 시 URI에 쿼리스트링이 포함되지 않도록 주의 (기본 uri만 사용)
   headers = get_naver_header(method, uri)
 
   try:
-    response = requests.get(url, headers=headers, timeout=5)
+    # params를 함께 전달
+    response = requests.get(url, headers=headers, params=params, timeout=5)
     if response.status_code == 200:
       return response.json()
     else:
-      # 🔴 네이버 API 실패 시 상세 에러코드와 메시지를 화면에 출력
       st.error(
           f"네이버 API 오류 발생! (상태 코드: {response.status_code})"
       )
