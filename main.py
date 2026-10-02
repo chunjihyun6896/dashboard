@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from openai import OpenAI
 
 # 1. 페이지 기본 설정 (와이드 모드)
 st.set_page_config(
@@ -118,7 +119,7 @@ st.dataframe(df_groups, hide_index=True, use_container_width=True)
 st.markdown("---")
 
 # ==========================================
-# [4단] 소재별 소진 내역 테이블 (소재 유형 및 문구 포함)
+# [4단] 소재별 소진 내역 테이블
 # ==========================================
 st.subheader(f"🎨 3. 소재별 소진 내역 ({selected_month})")
 st.caption("개별 크리에이티브(이미지/영상 형태 및 문구 확인) 성과 요약")
@@ -145,37 +146,54 @@ st.dataframe(df_creatives, hide_index=True, use_container_width=True)
 st.markdown("---")
 
 # ==========================================
-# [5단] 🪄 AI 광고 소재 스튜디오 (새로운 기능)
+# [5단] 🪄 AI 광고 소재 스튜디오 (OpenAI DALL-E 3 실제 연동)
 # ==========================================
 st.subheader("🪄 4. AI 광고 소재 생성 스튜디오")
-st.caption("원하시는 문구, 사이즈, 콘셉트를 입력하면 광고 집행용 시안 이미지를 실시간으로 생성해 드립니다.")
+st.caption("원하시는 문구, 사이즈, 콘셉트를 입력하면 OpenAI DALL-E 3 모델이 광고 집행용 시안 이미지를 생성합니다.")
 
 with st.container():
     col_input1, col_input2 = st.columns(2)
     
     with col_input1:
-        ad_copy = st.text_input("📝 광고 메인 문구 입력", placeholder="예: 겨울 시즌오프 최대 70% 파격 할인!")
-        ad_size = st.selectbox("📐 광고 사이즈 선택", options=["피드형 (1200 x 628)", "스퀘어형 (1000 x 1000)", "스토리형 (1080 x 1920)"])
+        ad_copy = st.text_input("📝 광고 메인 문구 입력", placeholder="예: 인터넷 약정이 끝났다면? 통신 지원금 140만원 당일입금!")
+        ad_size = st.selectbox("📐 광고 사이즈 선택", options=["스퀘어형 (1000 x 1000)", "와이드형 (1200 x 628)", "스토리형 (1080 x 1920)"])
         
     with col_input2:
-        ad_concept = st.text_area("🎨 원하는 비주얼 콘셉트 / 분위기", placeholder="예: 따뜻하고 아늑한 감성의 실내 인테리어, 파스텔톤 배경, 고화질 제품 클로즈업 컷")
+        ad_concept = st.text_area("🎨 원하는 비주얼 콘셉트 / 분위기", placeholder="예: 인터넷 가입 관련 소재, 140만원 강조, 신뢰감을 주는 깔끔한 배너 디자인")
         
     if st.button("✨ 광고 이미지 생성하기", type="primary"):
         if not ad_copy or not ad_concept:
             st.warning("⚠️ 광고 문구와 비주얼 콘셉트를 모두 입력해주세요!")
         else:
-            with st.spinner("🤖 AI가 맞춤형 광고 크리에이티브 디자인을 생성하고 있습니다..."):
-                # (추후 실제 OpenAI DALL-E 3 API 연동 코드 자리)
-                # 시뮬레이션용 성공 메시지 및 예시 이미지 출력
-                st.success("🎉 광고 소재 시안 생성이 완료되었습니다!")
-                
-                # 결과 미리보기 영역
-                res_col1, res_col2 = st.columns([1, 2])
-                with res_col1:
-                    st.info(f"**적용된 설정**\n- 브랜드: {current_advertiser_name}\n- 사이즈: {ad_size}\n- 문구: {ad_copy}")
-                with res_col2:
-                    # 임시 배너 이미지 출력 (실제 연동 시 생성된 이미지 출력)
-                    st.image("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop", caption=f"생성된 광고 시안: {ad_copy}")
+            try:
+                with st.spinner("🤖 OpenAI DALL-E 3가 맞춤형 광고 크리에이티브 디자인을 그리는 중입니다..."):
+                    # OpenAI 클라이언트 초기화 (Streamlit secrets 또는 환경 변수에서 키 자동 로드)
+                    client = OpenAI()
+                    
+                    # DALL-E 3용 프롬프트 조합 (입력된 문구와 콘셉트를 반영)
+                    prompt_text = f"Professional digital marketing banner ad. Visual concept: {ad_concept}. The design must prominently feature and relate to the marketing text: '{ad_copy}'. High quality, clean layout, commercial use style."
+                    
+                    # DALL-E 3 API 호출
+                    response = client.images.generate(
+                        model="dall-e-3",
+                        prompt=prompt_text,
+                        size="1024x1024",
+                        quality="standard",
+                        n=1,
+                    )
+                    
+                    image_url = response.data[0].url
+                    
+                    st.success("🎉 광고 소재 시안 생성이 완료되었습니다!")
+                    
+                    res_col1, res_col2 = st.columns([1, 2])
+                    with res_col1:
+                        st.info(f"**적용된 설정**\n- 브랜드: {current_advertiser_name}\n- 사이즈: {ad_size}\n- 문구: {ad_copy}")
+                    with res_col2:
+                        st.image(image_url, caption=f"생성된 광고 시안: {ad_copy}")
+                        
+            except Exception as e:
+                st.error(f"❌ 이미지 생성 중 오류가 발생했습니다. (OpenAI API Key 설정을 확인해주세요)\n오류 내용: {e}")
 
 st.markdown("---")
 
