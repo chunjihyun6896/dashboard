@@ -20,7 +20,7 @@ if "selected_channel" not in st.session_state:
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 네이버 검색광고 API 설정 및 연동 함수 (에러 상세 출력 기능 포함)
+# 2. 네이버 검색광고 API 설정 및 연동 함수 (경로 수정 완료: /ncc/campaigns)
 # ==========================================
 CUSTOMER_ID = "2274356"
 ACCESS_LICENSE = (
@@ -52,19 +52,15 @@ def get_naver_header(method, uri):
 
 @st.cache_data(ttl=600)
 def fetch_naver_campaigns():
-  # 네이버 검색광고 API 캠페인 조회 올바른 경로 및 파라미터
-  uri = "/campaigns"
+  # 🔴 네이버 검색광고 API 올바른 캠페인 조회 경로 (/ncc/campaigns)
+  uri = "/ncc/campaigns"
   method = "GET"
   url = BASE_URL + uri
 
-  # 네이버 API는 쿼리스트링으로 nccAccountId를 요구합니다.
   params = {"nccAccountId": CUSTOMER_ID}
-
-  # 서명 생성 시 URI에 쿼리스트링이 포함되지 않도록 주의 (기본 uri만 사용)
   headers = get_naver_header(method, uri)
 
   try:
-    # params를 함께 전달
     response = requests.get(url, headers=headers, params=params, timeout=5)
     if response.status_code == 200:
       return response.json()
