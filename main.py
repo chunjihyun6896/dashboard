@@ -1,8 +1,5 @@
 import streamlit as st
 import pandas as pd
-import json
-import urllib.request
-import os
 
 # 1. 페이지 기본 설정 (와이드 모드)
 st.set_page_config(
@@ -34,7 +31,7 @@ current_advertiser_name = advertisers[selected_id]
 
 with header_col1:
     st.title(f"📊 {current_advertiser_name} ({selected_id}) 카카오 대시보드")
-    st.markdown("월별 광고 집행 성과 분석부터 AI 광고 소재 제작까지 가능한 통합 퍼포먼스 마케팅 솔루션입니다.")
+    st.markdown("월별 광고 집행 성과 및 일자별·그룹별·소재별 상세 데이터를 모니터링하는 대시보드입니다.")
 
 st.markdown("---")
 
@@ -121,7 +118,7 @@ st.dataframe(df_groups, hide_index=True, use_container_width=True)
 st.markdown("---")
 
 # ==========================================
-# [4단] 소재별 소진 내역 테이블
+# [4단] 소재별 소진 내역 테이블 (소재 유형 및 문구 포함)
 # ==========================================
 st.subheader(f"🎨 3. 소재별 소진 내역 ({selected_month})")
 st.caption("개별 크리에이티브(이미지/영상 형태 및 문구 확인) 성과 요약")
@@ -147,84 +144,13 @@ st.dataframe(df_creatives, hide_index=True, use_container_width=True)
 
 st.markdown("---")
 
-# ==========================================
-# [5단] 🪄 AI 광고 소재 스튜디오 (안전 Fallback 처리 포함)
-# ==========================================
-st.subheader("🪄 4. AI 광고 소재 생성 스튜디오")
-st.caption("원하시는 문구, 사이즈, 콘셉트를 입력하면 입력하신 내용과 어울리는 광고 맞춤형 시안을 생성합니다.")
-
-with st.container():
-    col_input1, col_input2 = st.columns(2)
-    
-    with col_input1:
-        ad_copy = st.text_input("📝 광고 메인 문구 입력", placeholder="예: 인터넷 약정이 끝났다면? 통신 지원금 140만원 당일입금!")
-        ad_size = st.selectbox("📐 광고 사이즈 선택", options=["스퀘어형 (1000 x 1000)", "와이드형 (1200 x 628)", "스토리형 (1080 x 1920)"])
-        
-    with col_input2:
-        ad_concept = st.text_area("🎨 원하는 비주얼 콘셉트 / 분위기", placeholder="예: 인터넷 가입 관련 소재, 140만원 강조, 신뢰감을 주는 깔끔한 배너 디자인")
-        
-    if st.button("✨ 광고 이미지 생성하기", type="primary"):
-        if not ad_copy or not ad_concept:
-            st.warning("⚠️ 광고 문구와 비주얼 콘셉트를 모두 입력해주세요!")
-        else:
-            image_url = None
-            try:
-                api_key = None
-                try:
-                    api_key = st.secrets["OPENAI_API_KEY"]
-                except Exception:
-                    api_key = os.environ.get("OPENAI_API_KEY")
-                    
-                if api_key:
-                    with st.spinner("🤖 DALL-E 3가 입력하신 문구와 콘셉트에 맞춰 광고 디자인을 생성하는 중입니다..."):
-                        prompt_text = (
-                            f"A professional, high-converting digital marketing advertisement banner. "
-                            f"Visual Concept: {ad_concept}. "
-                            f"The banner must clearly and prominently display the promotional text: '{ad_copy}'. "
-                            f"Clean typography, eye-catching commercial design, high resolution."
-                        )
-                        
-                        req_data = json.dumps({
-                            "model": "dall-e-3",
-                            "prompt": prompt_text,
-                            "n": 1,
-                            "size": "1024x1024"
-                        }).encode('utf-8')
-                        
-                        req = urllib.request.Request(
-                            "https://api.openai.com/v1/images/generations",
-                            data=req_data,
-                            headers={
-                                "Content-Type": "application/json",
-                                "Authorization": f"Bearer {api_key}"
-                            }
-                        )
-                        
-                        with urllib.request.urlopen(req) as response:
-                            res_body = json.loads(response.read().decode('utf-8'))
-                            image_url = res_body['data'][0]['url']
-            except Exception:
-                # 400 에러나 잔액 부족 등으로 API 호출 실패 시 고품질 맞춤형 시안 이미지로 대체 출력
-                image_url = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000&auto=format&fit=crop"
-
-            # 결과 출력
-            if image_url:
-                st.success("🎉 입력하신 문구와 콘셉트가 반영된 광고 시안 생성이 완료되었습니다!")
-                res_col1, res_col2 = st.columns([1, 2])
-                with res_col1:
-                    st.info(f"**적용된 설정**\n- 브랜드: {current_advertiser_name}\n- 사이즈: {ad_size}\n- 문구: **{ad_copy}**\n- 콘셉트: {ad_concept}")
-                with res_col2:
-                    st.image(image_url, caption=f"광고 시안 배너: {ad_copy}")
-
-st.markdown("---")
-
-# [6단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
+# [5단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
 st.subheader(f"🤖 AI 퍼포먼스 마케팅 인사이트 & 액션 제안 ({current_advertiser_name} - {selected_month})")
 
 with st.container():
     st.markdown(f"""
     > **💡 [{current_advertiser_name}] {selected_month} 기간 동안의 계층별 진단 요약**
-    > * **일자/그룹/소재 종합 평가**: 선택하신 {selected_month} 동안 그룹별 소진 내역과 크리에이티브 효율을 교차 분석한 결과, 고효율 소재를 활용한 리타겟팅 그룹의 전환수 기여도가 가장 높게 나타났습니다.
+    > * **일자/소재 종합 평가**: 선택하신 {selected_month} 동안 그룹별 소진 내역과 크리에이티브 효율을 교차 분석한 결과, 고효율 소재를 활용한 리타겟팅 그룹의 전환수 기여도가 가장 높게 나타났습니다.
     """)
     
     tab1, tab2, tab3 = st.tabs(["🚨 긴급 개선점", "💰 예산 재배분 제안", "🎨 크리에이티브 전략"])
@@ -244,5 +170,5 @@ with st.container():
     with tab3:
         st.markdown("""
         - **소재 리프레시**: 
-          - CTR이 2.5% 이하로 떨어진 피로도 누적 소재는 중단하고, 위 **AI 소재 스튜디오**를 통해 새로운 베리언트 시안을 빠르게 제작하세요.
+          - CTR이 2.5% 이하로 떨어진 피로도 누적 소재는 중단하고, 새로운 베리언트 시안을 제작하세요.
         """)
