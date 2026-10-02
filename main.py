@@ -9,35 +9,85 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. 좌측 사이드바 구성 (로고 및 매체 선택)
+# 2. 커스텀 CSS (어두운 남색 미니 사이드바 및 레이아웃 조정)
+# ==========================================
+st.markdown("""
+<style>
+    /* 기본 사이드바 너비를 좁게 설정 및 어두운 남색 배경 적용 */
+    [data-testid="stSidebar"] {
+        background-color: #1e293b;
+        min-width: 90px !important;
+        max-width: 90px !important;
+    }
+    /* 사이드바 내부 여백 및 패딩 최소화 */
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 1rem;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    /* 사이드바 내 라디오 버튼 스타일을 작은 버튼 형태처럼 보이게 커스텀 */
+    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] {
+        gap: 0.5rem;
+    }
+    [data-testid="stSidebar"] .stRadio label {
+        background-color: #334155;
+        color: white;
+        padding: 6px 10px;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 12px;
+        cursor: pointer;
+        display: block;
+        margin-bottom: 4px;
+    }
+    [data-testid="stSidebar"] .stRadio label:hover {
+        background-color: #475569;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 세션 스테이트를 이용해 현재 선택된 채널 관리 (기본값: 카카오)
+if "selected_channel" not in st.session_state:
+    st.session_state.selected_channel = "카카오"
+
+# ==========================================
+# 3. 좌측 미니 사이드바 구성 (로고 + 채널 선택 버튼들)
 # ==========================================
 with st.sidebar:
-    # 자사 로고 이미지 배치
+    # 1) 자사 로고 이미지 배치
     logo_url = "https://postfiles.pstatic.net/MjAyNjEwMDJfMjk4/MDAxNzkwOTAzOTM5MzYz.TuL0H-S5UJ3hzhRb7hJLmt_Ze1U6QLqbva_vU6jeFsAg.5eVyYnQJTMkoNvS-OHY6TyepB4kuOwDtWfu1JvPa1XIg.JPEG/%EB%A1%9C%EA%B3%A0.jpg?type=w966"
     st.image(logo_url, use_container_width=True)
     
-    st.markdown("---")
+    st.markdown("<hr style='margin: 10px 0; border-color: #334155;'>", unsafe_allow_html=True)
     
-    # 광고 매체 선택 라디오 버튼 (카카오, 메타, 토스)
-    st.subheader("📢 광고 매체 선택")
+    # 2) 하단에 조그맣게 들어갈 채널 선택
+    st.markdown("<p style='color: #94a3b8; font-size: 11px; text-align: center; margin-bottom: 5px;'>채널 선택</p>", unsafe_allow_html=True)
+    
+    channel_options = ["카카오", "토스", "메타"]
+    current_idx = channel_options.index(st.session_state.selected_channel) if st.session_state.selected_channel in channel_options else 0
+    
     selected_channel = st.radio(
-        "확인할 채널을 선택하세요",
-        options=["카카오 (Kakao)", "메타 (Meta)", "토스 (Toss)"],
-        index=0
+        "채널 선택",
+        options=channel_options,
+        index=current_idx,
+        label_visibility="collapsed"
     )
-    
-    # 채널별 심볼 추출
-    channel_name = selected_channel.split(" ")[0]
-    
-    st.markdown("---")
-    
-    # 관리 중인 광고주 리스트
-    advertisers = {
-        "558725": "A 브랜드 (주력 상품군)",
-        "889922": "B 브랜드 (신규 런칭군)",
-        "774411": "C 브랜드 (글로벌 라인)"
-    }
-    
+    st.session_state.selected_channel = selected_channel
+
+channel_name = st.session_state.selected_channel
+
+# ==========================================
+# 4. 상단 타이틀 및 우측 광고주 선택 메뉴 배치 (원래 위치 유지)
+# ==========================================
+advertisers = {
+    "558725": "A 브랜드 (주력 상품군)",
+    "889922": "B 브랜드 (신규 런칭군)",
+    "774411": "C 브랜드 (글로벌 라인)"
+}
+
+header_col1, header_col2 = st.columns([2, 1])
+
+with header_col2:
     selected_id = st.selectbox(
         "📌 광고주 선택",
         options=list(advertisers.keys()),
@@ -46,15 +96,13 @@ with st.sidebar:
 
 current_advertiser_name = advertisers[selected_id]
 
-# ==========================================
-# 3. 메인 대시보드 영역
-# ==========================================
-st.title(f"📊 [{channel_name}] {current_advertiser_name} ({selected_id}) 성과 대시보드")
-st.markdown(f"선택하신 **{channel_name}** 매체의 광고 집행 성과 및 상세 데이터를 모니터링하는 통합 퍼포먼스 솔루션입니다.")
+with header_col1:
+    st.title(f"📊 [{channel_name}] {current_advertiser_name} 성과 대시보드")
+    st.markdown(f"선택하신 **{channel_name}** 채널의 광고 집행 성과 및 상세 데이터를 모니터링합니다.")
 
 st.markdown("---")
 
-# [1단] 핵심 지표 요약 (Metric Cards) - 채널별로 수치가 살짝 다르게 연동되도록 구성
+# [1단] 핵심 지표 요약 (Metric Cards) - 채널별 수치 분기
 if channel_name == "카카오":
     c1, c2, c3, c4 = "4,400만 원", "14,200만 원", "322.7%", "92.2%"
 elif channel_name == "메타":
@@ -153,7 +201,7 @@ df_creatives = pd.DataFrame({
     '소재 유형': ["이미지 (피드)", "동영상 (숏폼)", "이미지 (와이드)", "이미지 (카드형)", "동영상 (인터뷰)"],
     '소재명 / 문구': [
         f"[{channel_name}] 메인배너_v1.jpg\n(문구: 시즌 한정 특가 찬스!)",
-        f"[{channel_name}] 쇼츠형_퍼포먼스_v2.mp4\n(문구: 3초만에 끝내는 간편 가입)",
+        f"[{channel_name}] 쇼츠형_퍼포먼스_v2.mp4\n(문구: 3초만에 끝나는 간편 가입)",
         f"[{channel_name}] 제품단독_클로즈업_v3.jpg\n(문구: 베스트셀러 재입고 완료)",
         f"[{channel_name}] 할인혜택_고지형_v1.jpg\n(문구: 첫구매 50% 즉시 할인)",
         f"[{channel_name}] 스토리_인터뷰_v1.mp4\n(문구: 실제 유저 리얼 후기)"
@@ -176,25 +224,14 @@ st.subheader(f"🤖 AI 퍼포먼스 마케팅 진단 & 제안 ({channel_name} / 
 with st.container():
     st.markdown(f"""
     > **💡 [{channel_name}] {selected_month} 기간 동안의 매체별 운영 진단 요약**
-    > * **채널 특화 분석**: 현재 선택하신 **{channel_name}** 매체는 타 채널 대비 클릭률(CTR)과 전환 효율이 안정적으로 유지되고 있습니다. 고효율 소재 중심의 예산 집중을 권장합니다.
+    > * **채널 특화 분석**: 현재 선택하신 **{channel_name}** 매체는 타 채널 대비 클릭률(CTR)과 전환 효율이 안정적으로 유지되고 있습니다.
     """)
     
     tab1, tab2, tab3 = st.tabs(["🚨 긴급 개선점", "💰 예산 재배분 제안", "🎨 크리에이티브 전략"])
     
     with tab1:
-        st.markdown(f"""
-        - **[{channel_name}] 저효율 캠페인 점검**: 
-          - 소진 비용 대비 전환 단가(CPA)가 높은 오디언스 그룹의 입찰 전략을 최적화하세요.
-        """)
-        
+        st.markdown(f"- **[{channel_name}] 저효율 캠페인 점검**: 소진 비용 대비 전환 단가(CPA)가 높은 그룹의 입찰 전략을 최적화하세요.")
     with tab2:
-        st.markdown("""
-        - **고성과 그룹 예산 상향**: 
-          - ROAS가 보장되는 메인 캠페인 그룹에 예산을 추가 배분하여 볼륨을 극대화하세요.
-        """)
-        
+        st.markdown("- **고성과 그룹 예산 상향**: ROAS가 보장되는 메인 캠페인 그룹에 예산을 추가 배분하여 볼륨을 극대화하세요.")
     with tab3:
-        st.markdown("""
-        - **소재 리프레시**: 
-          - 피로도가 누적된 크리에이티브는 중단하고 신규 소스를 투입하세요.
-        """)
+        st.markdown("- **소재 리프레시**: 피로도가 누적된 크리에이티브는 중단하고 신규 소스를 투입하세요.")
