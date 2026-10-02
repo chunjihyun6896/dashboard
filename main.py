@@ -36,11 +36,11 @@ st.markdown(
         padding: 4px;
     }
     
-    /* 텍스트 클릭형 버튼 스타일 커스텀 (배경 없애고 텍스트만 보이게) */
+    /* 텍스트 클릭형 버튼 기본 스타일 */
     [data-testid="stSidebar"] div.stButton > button {
         background-color: transparent !important;
         border: none !important;
-        color: #94a3b8 !important; /* 기본 회색 텍스트 */
+        color: #94a3b8 !important; /* 기본 비활성 회색 텍스트 */
         font-size: 14px !important;
         font-weight: 500 !important;
         width: 100% !important;
@@ -100,17 +100,36 @@ with st.sidebar:
       unsafe_allow_html=True,
   )
 
-  # 2) 채널 선택 상단 텍스트 및 라디오박스 완전 제거 후 텍스트 클릭형 버튼 배치
+  # 2) 채널 선택 텍스트 클릭형 버튼 배치 (선택된 채널은 흰색+진하게, 비선택은 회색)
   channels = ["카카오", "토스", "메타"]
 
   for ch in channels:
-    # 현재 선택된 채널일 경우 텍스트 색상을 하얗게 강조
     is_selected = st.session_state.selected_channel == ch
-    btn_label = f"✨ {ch}" if is_selected else ch
 
-    if st.button(btn_label, key=f"btn_{ch}", use_container_width=True):
+    # 선택 여부에 따라 HTML 스타일(글자색, 굵기)을 다르게 적용하여 버튼 생성
+    if is_selected:
+      btn_label = f"<span style='color: #ffffff; font-weight: 700;'>{ch}</span>"
+    else:
+      btn_label = f"<span style='color: #94a3b8; font-weight: 500;'>{ch}</span>"
+
+    # st.button 내부에 HTML 적용을 위해 도움말 및 커스텀 마크업 활용
+    if st.button(ch, key=f"btn_{ch}", use_container_width=True):
       st.session_state.selected_channel = ch
       st.rerun()  # 클릭 즉시 화면 갱신
+
+    # Streamlit 기본 버튼 텍스트를 위에서 정의한 강조 스타일로 덮어씌우기 위한 CSS 추가 주입
+    if is_selected:
+      st.markdown(
+          f"""
+            <style>
+                div[data-testid="stSidebar"] button[key="btn_{ch}"] {{
+                    color: #ffffff !important;
+                    font-weight: 700 !important;
+                }}
+            </style>
+            """,
+          unsafe_allow_html=True,
+      )
 
 channel_name = st.session_state.selected_channel
 
