@@ -15,7 +15,7 @@ if "selected_channel" not in st.session_state:
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 커스텀 CSS (기본 흰색 텍스트 및 선택 시 흰색 배경 + 검정 볼드체 처리)
+# 2. 커스텀 CSS (기본은 투명/흰색 텍스트, 선택된 항목만 흰색 박스 + 검정 볼드체)
 # ==========================================
 st.markdown(
     """
@@ -42,84 +42,51 @@ st.markdown(
         padding: 4px;
     }
     
-    /* Streamlit 기본 버튼 스타일 초기화 및 기본 상태 설정 (흰색 글씨) */
+    /* Streamlit 기본 버튼 스타일 초기화 (기본 상태: 박스 없음, 흰색 텍스트) */
     [data-testid="stSidebar"] div.stButton > button {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
         width: 100% !important;
         text-align: center !important;
-        padding: 8px 0 !important;
+        padding: 10px 0 !important;
         margin-bottom: 6px;
         border-radius: 6px;
     }
     
-    /* 기본 버튼 안의 텍스트 색상을 흰색으로 고정 */
+    /* 기본 버튼 안의 텍스트 색상을 흰색으로 설정 */
     [data-testid="stSidebar"] div.stButton > button p {
         color: #ffffff !important;
         font-size: 14px !important;
         font-weight: 500 !important;
-        text-decoration: none !important;
     }
     
     /* 마우스 올렸을 때 살짝 밝은 배경 효과 */
     [data-testid="stSidebar"] div.stButton > button:hover {
         background-color: rgba(255, 255, 255, 0.1) !important;
     }
-
-    /* ==========================================
-       선택된 메뉴 전용 스타일 (흰색 배경 + 검정 볼드체)
-       ========================================== */
+</style>
 """,
     unsafe_allow_html=True,
 )
 
-# 현재 선택된 채널에 따라 해당 버튼에만 흰색 배경과 검정 볼드체 적용
-if channel_name == "카카오":
-  st.markdown(
-      """
-        <style>
-            div[data-testid="stSidebar"] button[key="btn_카카오"] {
-                background-color: #ffffff !important;
-            }
-            div[data-testid="stSidebar"] button[key="btn_카카오"] p {
-                color: #000000 !important;
-                font-weight: 700 !important;
-            }
-        </style>
-        """,
-      unsafe_allow_html=True,
-  )
-elif channel_name == "토스":
-  st.markdown(
-      """
-        <style>
-            div[data-testid="stSidebar"] button[key="btn_토스"] {
-                background-color: #ffffff !important;
-            }
-            div[data-testid="stSidebar"] button[key="btn_토스"] p {
-                color: #000000 !important;
-                font-weight: 700 !important;
-            }
-        </style>
-        """,
-      unsafe_allow_html=True,
-  )
-elif channel_name == "메타":
-  st.markdown(
-      """
-        <style>
-            div[data-testid="stSidebar"] button[key="btn_메타"] {
-                background-color: #ffffff !important;
-            }
-            div[data-testid="stSidebar"] button[key="btn_메타"] p {
-                color: #000000 !important;
-                font-weight: 700 !important;
-            }
-        </style>
-        """,
-      unsafe_allow_html=True,
-  )
+# ==========================================
+# 선택된 메뉴 버튼만 '흰색 박스 + 검정 볼드체'로 동적 변경
+# ==========================================
+st.markdown(
+    f"""
+<style>
+    div[data-testid="stSidebar"] button[key="btn_{channel_name}"] {{
+        background-color: #ffffff !important;
+    }}
+    div[data-testid="stSidebar"] button[key="btn_{channel_name}"] p {{
+        color: #000000 !important;
+        font-weight: 700 !important;
+    }}
+</style>
+""",
+    unsafe_allow_html=True,
+)
 
 
 # 외부 이미지 보안 차단 방지 및 Base64 변환 함수
@@ -137,7 +104,7 @@ def get_base64_image(url):
 
 
 # ==========================================
-# 3. 좌측 미니 사이드바 구성 (로고 + 텍스트 클릭형 메뉴)
+# 3. 좌측 미니 사이드바 구성 (로고 + 텍스트 메뉴)
 # ==========================================
 with st.sidebar:
   # 1) 자사 로고 이미지 배치
@@ -158,13 +125,14 @@ with st.sidebar:
       unsafe_allow_html=True,
   )
 
-  # 2) 텍스트 클릭형 메뉴 항목들
+  # 2) 채널 목록 버튼 렌더링
   channels = ["카카오", "토스", "메타"]
 
   for ch in channels:
     if st.button(ch, key=f"btn_{ch}", use_container_width=True):
-      st.session_state.selected_channel = ch
-      st.rerun()
+      if st.session_state.selected_channel != ch:
+        st.session_state.selected_channel = ch
+        st.rerun()
 
 # ==========================================
 # 4. 상단 타이틀 및 우측 광고주 선택 메뉴 배치
