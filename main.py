@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. 커스텀 CSS (밑줄 제거 및 매끄러운 텍스트 버튼 스타일링)
+# 2. 커스텀 CSS (흰색 박스/테두리/밑줄 완전 제거 및 완벽한 텍스트 클릭형 구현)
 # ==========================================
 st.markdown(
     """
@@ -36,22 +36,28 @@ st.markdown(
         padding: 4px;
     }
     
-    /* Streamlit 기본 버튼을 텍스트형으로 완벽 변조 (밑줄 원천 차단) */
+    /* Streamlit 버튼 스타일을 완전히 무력화하고 투명한 텍스트 버튼으로 변환 */
     [data-testid="stSidebar"] div.stButton > button {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
         width: 100% !important;
         text-align: center !important;
-        padding: 8px 0 !important;
+        padding: 6px 0 !important;
         margin-bottom: 4px;
-        border-radius: 4px;
+    }
+    
+    /* 버튼 내부 텍스트 기본 상태 (회색, 밑줄 없음) */
+    [data-testid="stSidebar"] div.stButton > button p {
+        color: #94a3b8 !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
         text-decoration: none !important;
     }
     
-    /* 마우스 올렸을 때 배경 살짝 밝게 */
-    [data-testid="stSidebar"] div.stButton > button:hover {
-        background-color: rgba(255, 255, 255, 0.08) !important;
+    /* 마우스 올렸을 때 텍스트가 하얗게 변함 */
+    [data-testid="stSidebar"] div.stButton > button:hover p {
+        color: #ffffff !important;
         text-decoration: none !important;
     }
 </style>
@@ -100,41 +106,31 @@ with st.sidebar:
       unsafe_allow_html=True,
   )
 
-  # 2) 텍스트 클릭형 메뉴 항목들 (선택 시 진하고 하얀 글씨, 미선택 시 회색)
+  # 2) 텍스트 클릭형 메뉴 항목들
   channels = ["카카오", "토스", "메타"]
 
   for ch in channels:
     is_selected = st.session_state.selected_channel == ch
 
+    # 선택된 채널일 경우 글씨를 하얗고 진하게(Bold) 고정하기 위한 동적 CSS 주입
     if is_selected:
-      btn_label = f"<span style='color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none;'>{ch}</span>"
-    else:
-      btn_label = f"<span style='color: #94a3b8; font-size: 14px; font-weight: 500; text-decoration: none;'>{ch}</span>"
+      st.markdown(
+          f"""
+            <style>
+                div[data-testid="stSidebar"] button[key="btn_{ch}"] p {{
+                    color: #ffffff !important;
+                    font-weight: 700 !important;
+                    text-decoration: none !important;
+                }}
+            </style>
+            """,
+          unsafe_allow_html=True,
+      )
 
-    # 커스텀 HTML 버튼 렌더링
-    if st.button(
-        ch, key=f"btn_{ch}", use_container_width=True, help=f"{ch} 채널 선택"
-    ):
+    # 버튼 클릭 시 세션 상태 업데이트 후 즉시 새로고침
+    if st.button(ch, key=f"btn_{ch}", use_container_width=True):
       st.session_state.selected_channel = ch
       st.rerun()
-
-    # 각 버튼에 맞는 글자 스타일 실시간 주입
-    st.markdown(
-        f"""
-        <style>
-            div[data-testid="stSidebar"] button[key="btn_{ch}"] p {{
-                color: {"#ffffff" if is_selected else "#94a3b8"} !important;
-                font-weight: {"700" if is_selected else "500"} !important;
-                font-size: 14px !important;
-                text-decoration: none !important;
-            }}
-            div[data-testid="stSidebar"] button[key="btn_{ch}"] div {{
-                text-decoration: none !important;
-            }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
 channel_name = st.session_state.selected_channel
 
@@ -333,10 +329,14 @@ df_creatives = pd.DataFrame({
         "6,000,000원",
     ],
     "노출": ["38,000,000", "28,000,000", "21,000,000", "18,000,000", "9,500,000"],
-    "클릭했을 때 글씨 색이 안 변해": ["110,000", "92,000", "58,000", "49,000", "21,000"],
+    "클릭수": ["110,000", "92,000", "58,000", "49,000", "21,000"],
     "CTR": ["2.89%", "3.28%", "2.76%", "2.72%", "2.21%"],
     "전환수": ["1,200건", "1,150건", "620건", "510건", "200건"],
 })
+
+st.dataframe(df_creatives, hide_index=True, use_container_width=True)
+
+st.markdown("---")
 
 # [5단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
 st.subheader(
