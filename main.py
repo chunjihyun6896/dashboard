@@ -15,7 +15,7 @@ if "selected_channel" not in st.session_state:
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 커스텀 CSS (기본 흰색 텍스트 및 선택 시 흰색 배경 + 검정 볼드체 처리)
+# 2. 커스텀 CSS (사이드바 및 선택된 박스 스타일 정의)
 # ==========================================
 st.markdown(
     """
@@ -42,84 +42,40 @@ st.markdown(
         padding: 4px;
     }
     
-    /* Streamlit 기본 버튼 스타일 초기화 및 기본 상태 설정 (흰색 글씨) */
-    [data-testid="stSidebar"] div.stButton > button {
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        width: 100% !important;
-        text-align: center !important;
-        padding: 8px 0 !important;
-        margin-bottom: 6px;
+    /* 사이드바 커스텀 메뉴 버튼 스타일 */
+    .menu-btn {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+        margin-bottom: 8px;
+        text-align: center;
         border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #ffffff;
+        background-color: transparent;
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.2s ease-in-out;
     }
     
-    /* 기본 버튼 안의 텍스트 색상을 흰색으로 고정 */
-    [data-testid="stSidebar"] div.stButton > button p {
+    /* 마우스 올렸을 때 */
+    .menu-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    /* 선택된 메뉴 스타일 (요청하신 회색 박스 배경 + 흰색 텍스트/볼드) */
+    .menu-btn.selected {
+        background-color: #475569 !important; /* 부드러운 회색 박스 */
         color: #ffffff !important;
-        font-size: 14px !important;
-        font-weight: 500 !important;
-        text-decoration: none !important;
+        font-weight: 700 !important;
+        border: 1px solid #64748b !important;
     }
-    
-    /* 마우스 올렸을 때 살짝 밝은 배경 효과 */
-    [data-testid="stSidebar"] div.stButton > button:hover {
-        background-color: rgba(255, 255, 255, 0.1) !important;
-    }
-
-    /* ==========================================
-       선택된 메뉴 전용 스타일 (흰색 배경 + 검정 볼드체)
-       ========================================== */
+</style>
 """,
     unsafe_allow_html=True,
 )
-
-# 현재 선택된 채널에 따라 해당 버튼에만 흰색 배경과 검정 볼드체 적용
-if channel_name == "카카오":
-  st.markdown(
-      """
-        <style>
-            div[data-testid="stSidebar"] button[key="btn_카카오"] {
-                background-color: #ffffff !important;
-            }
-            div[data-testid="stSidebar"] button[key="btn_카카오"] p {
-                color: #000000 !important;
-                font-weight: 700 !important;
-            }
-        </style>
-        """,
-      unsafe_allow_html=True,
-  )
-elif channel_name == "토스":
-  st.markdown(
-      """
-        <style>
-            div[data-testid="stSidebar"] button[key="btn_토스"] {
-                background-color: #ffffff !important;
-            }
-            div[data-testid="stSidebar"] button[key="btn_토스"] p {
-                color: #000000 !important;
-                font-weight: 700 !important;
-            }
-        </style>
-        """,
-      unsafe_allow_html=True,
-  )
-elif channel_name == "메타":
-  st.markdown(
-      """
-        <style>
-            div[data-testid="stSidebar"] button[key="btn_메타"] {
-                background-color: #ffffff !important;
-            }
-            div[data-testid="stSidebar"] button[key="btn_메타"] p {
-                color: #000000 !important;
-                font-weight: 700 !important;
-            }
-        </style>
-        """,
-      unsafe_allow_html=True,
-  )
 
 
 # 외부 이미지 보안 차단 방지 및 Base64 변환 함수
@@ -137,7 +93,7 @@ def get_base64_image(url):
 
 
 # ==========================================
-# 3. 좌측 미니 사이드바 구성 (로고 + 텍스트 클릭형 메뉴)
+# 3. 좌측 미니 사이드바 구성 (로고 + 채널 선택 버튼)
 # ==========================================
 with st.sidebar:
   # 1) 자사 로고 이미지 배치
@@ -158,13 +114,39 @@ with st.sidebar:
       unsafe_allow_html=True,
   )
 
-  # 2) 텍스트 클릭형 메뉴 항목들
+  # 2) 채널 목록 정의
   channels = ["카카오", "토스", "메타"]
 
+  # 3) 각 채널별 버튼 렌더링 및 클릭 이벤트 처리
   for ch in channels:
+    # 현재 선택된 채널인지 확인하여 'selected' 클래스 부여
+    is_selected = ch == channel_name
+    css_class = "menu-btn selected" if is_selected else "menu-btn"
+
+    # Streamlit의 st.button을 대체하는 인터랙티브 버튼 구현
     if st.button(ch, key=f"btn_{ch}", use_container_width=True):
-      st.session_state.selected_channel = ch
-      st.rerun()
+      if st.session_state.selected_channel != ch:
+        st.session_state.selected_channel = ch
+        st.rerun()
+
+    # 버튼 아래에 커스텀 스타일이 적용된 시각적 레이어 추가 연동
+    # (Streamlit 버튼 자체의 스타일 한계를 극복하기 위한 스타일 오버레이)
+    if is_selected:
+      st.markdown(
+          f"""
+            <style>
+                div[data-testid="stSidebar"] button[key="btn_{ch}"] {{
+                    background-color: #475569 !important;
+                    border: 1px solid #64748b !important;
+                }}
+                div[data-testid="stSidebar"] button[key="btn_{ch}"] p {{
+                    color: #ffffff !important;
+                    font-weight: 700 !important;
+                }}
+            </style>
+            """,
+          unsafe_allow_html=True,
+      )
 
 # ==========================================
 # 4. 상단 타이틀 및 우측 광고주 선택 메뉴 배치
