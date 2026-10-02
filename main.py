@@ -50,6 +50,26 @@ def get_naver_header(method, uri):
   }
 
 
+# 네이버 계정(고객) 정보 실시간 조회 함수 (광고주명 자동 인식)
+@st.cache_data(ttl=600)
+def fetch_naver_customer_info(customer_id):
+  uri = f"/customers/{customer_id}"
+  method = "GET"
+  url = BASE_URL + uri
+  headers = get_naver_header(method, uri)
+
+  try:
+    response = requests.get(url, headers=headers, timeout=5)
+    if response.status_code == 200:
+      data = response.json()
+      # 네이버 API 응답 구조에 따라 업체명(name 또는 companyName 등) 추출
+      return data.get("name") or data.get("companyName")
+    else:
+      return None
+  except Exception:
+    return None
+
+
 @st.cache_data(ttl=600)
 def fetch_naver_campaigns():
   uri = "/ncc/campaigns"
@@ -90,17 +110,14 @@ def fetch_naver_adgroups():
 # 3. AI 진단 로직 함수 (미진행 상태 정밀 판별)
 # ==========================================
 def generate_ai_diagnosis(channel, advertiser, df_groups):
-  # 데이터가 아예 없거나, 모든 그룹의 상태에 '미진행' 또는 '대기중'이 포함되어 있으면 미진행으로 판단
   is_running = True
 
   if df_groups.empty:
     is_running = False
   else:
-    # '미진행', '대기중', '중지', 'PAUSED' 등의 키워드가 포함된 비율 체크
     stopped_rows = df_groups[
         df_groups["상태"].str.contains("미진행|대기중|중지|PAUSED|STOP", na=False)
     ]
-    # 모든 그룹이 미진행/대기 상태인 경우
     if len(stopped_rows) == len(df_groups):
       is_running = False
 
@@ -254,24 +271,37 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 6. 상단 타이틀 및 우측 광고주 선택 메뉴
+# 6. 상단 타이틀 및 광고주 자동 인식 메뉴
 # ==========================================
-advertisers = {
-    "558725": "A 브랜드 (주력 상품군)",
-    "889922": "B 브랜드 (신규 런칭군)",
-    "774411": "C 브랜드 (글로벌 라인)",
-}
-
 header_col1, header_col2 = st.columns([2, 1])
 
-with header_col2:
-  selected_id = st.selectbox(
-      "📌 광고주 선택",
-      options=list(advertisers.keys()),
-      format_func=lambda x: f"{advertisers[x]} ({x})",
+# 네이버 채널일 경우 API로 실제 광고주명을 실시간 가져옴 (실패 시 기본값 사용)
+if channel_name == "네이버":
+  api_advertiser_name = fetch_naver_customer_info(CUSTOMER_ID)
+  current_advertiser_name = (
+      api_advertiser_name
+      if api_advertiser_name
+      else f"네이버 광고주 ({CUSTOMER_ID})"
   )
-
-current_advertiser_name = advertisers[selected_id]
+  with header_col2:
+    st.info(
+        f"📌 **현재 연동된 네이버 계정**\n- ID: `{CUSTOMER_ID}`\n- 인식된"
+        f" 업체명: **{current_advertiser_name}**"
+    )
+else:
+  # 타 채널의 경우 기존 선택형태 유지
+  advertisers = {
+      "558725": "A 브랜드 (주력 상품군)",
+      "889922": "B 브랜드 (신규 런칭군)",
+      "774411": "C 브랜드 (글로벌 라인)",
+  }
+  with header_col2:
+    selected_id = st.selectbox(
+        "📌 광고주 선택",
+        options=list(advertisers.keys()),
+        format_func=lambda x: f"{advertisers[x]} ({x})",
+    )
+  current_advertiser_name = advertisers[selected_id]
 
 with header_col1:
   st.title(f"📊 [{channel_name}] {current_advertiser_name} 성과 대시보드")
@@ -377,7 +407,6 @@ if channel_name == "네이버":
   if adgroups_data and len(adgroups_data) > 0:
     rows = []
     for group in adgroups_data:
-      # 네이버 API 상태값을 보기 쉽게 가공
       raw_status = group.get("status", "")
       status_display = (
           "대기중/미진행"
@@ -429,14 +458,13 @@ if not df_groups.empty:
 st.markdown("---")
 
 # ==========================================
-# 9. AI 퍼포먼스 마케팅 진단 & 제안 (미진행 상태 정밀 반영)
+# 9. AI 퍼포먼스 마케팅 진단 & 제안
 # ==========================================
 st.subheader(
     f"🤖 AI 퍼포먼스 마케팅 진단 & 제안 ({channel_name} /"
     f" {current_advertiser_name})"
 )
 
-# AI 진단 결과 동적 생성 호출
 ai_diagnosis = generate_ai_diagnosis(
     channel_name, current_advertiser_name, df_groups
 )
