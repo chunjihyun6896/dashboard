@@ -9,13 +9,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# ==========================================
-# 2. 상단 광고주 선택 메뉴 (사이드바 대체)
-# ==========================================
-st.title("📊 통합 마케팅 성과 대시보드")
-st.markdown("매체별 ROAS 성과 및 광고비 집행 현황을 모니터링하는 대시보드입니다.")
-st.markdown("---")
-
 # 관리 중인 광고주 리스트
 advertisers = {
     "558725": "A 브랜드 (주력 상품군)",
@@ -23,17 +16,26 @@ advertisers = {
     "774411": "C 브랜드 (글로벌 라인)"
 }
 
-# 화면 상단에 가로형 셀렉트박스 배치
-col_sel1, col_sel2 = st.columns([2, 3])
-with col_sel1:
+# ==========================================
+# 2. 상단 타이틀 및 우측 광고주 선택 메뉴 배치
+# ==========================================
+header_col1, header_col2 = st.columns([2, 1])
+
+with header_col1:
+    st.title("📊 통합 마케팅 성과 대시보드")
+    st.markdown("매체별 ROAS 성과 및 광고비 집행 현황을 모니터링하는 대시보드입니다.")
+
+with header_col2:
+    # 우측 상단에 셀렉트박스 배치
     selected_id = st.selectbox(
-        "📌 분석할 광고주를 선택하세요",
+        "📌 광고주 선택",
         options=list(advertisers.keys()),
         format_func=lambda x: f"{advertisers[x]} ({x})"
     )
 
 current_advertiser_name = advertisers[selected_id]
 
+st.markdown("---")
 st.markdown(f"**현재 선택된 계정**: `{current_advertiser_name}` (카카오모먼트 계정 ID: `{selected_id}`)")
 st.markdown("---")
 
