@@ -8,36 +8,59 @@ st.set_page_config(
     page_title="멀티채널 마케팅 성과 대시보드", page_icon="📊", layout="wide"
 )
 
+# 세션 스테이트를 이용해 현재 선택된 채널 관리 (기본값: 카카오)
+if "selected_channel" not in st.session_state:
+  st.session_state.selected_channel = "카카오"
+
+channel_name = st.session_state.selected_channel
+
 # ==========================================
-# 2. 커스텀 CSS (흰색 박스/테두리/밑줄 완전 제거 및 완벽한 텍스트 클릭형 구현)
+# 2. 커스텀 CSS (선택된 메뉴 동적 강조 스타일링 포함)
 # ==========================================
+# 선택된 채널에 따라 해당 버튼만 글씨를 하얗고 진하게 만드는 동적 CSS
+selected_kakao_css = (
+    "font-weight: 700 !important; color: #ffffff !important;"
+    if channel_name == "카카오"
+    else "font-weight: 500 !important; color: #94a3b8 !important;"
+)
+selected_toss_css = (
+    "font-weight: 700 !important; color: #ffffff !important;"
+    if channel_name == "토스"
+    else "font-weight: 500 !important; color: #94a3b8 !important;"
+)
+selected_meta_css = (
+    "font-weight: 700 !important; color: #ffffff !important;"
+    if channel_name == "메타"
+    else "font-weight: 500 !important; color: #94a3b8 !important;"
+)
+
 st.markdown(
-    """
+    f"""
 <style>
     /* 기본 사이드바 너비를 좁게 설정 및 어두운 남색 배경 적용 */
-    [data-testid="stSidebar"] {
+    [data-testid="stSidebar"] {{
         background-color: #1e293b;
         min-width: 90px !important;
         max-width: 90px !important;
-    }
+    }}
     /* 사이드바 내부 여백 및 패딩 최소화 */
-    [data-testid="stSidebar"] > div:first-child {
+    [data-testid="stSidebar"] > div:first-child {{
         padding-top: 1rem;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
-    }
+    }}
     /* 사이드바 로고 이미지를 1:1 비율 및 규격에 맞게 조정 */
-    [data-testid="stSidebar"] img {
+    [data-testid="stSidebar"] img {{
         width: 100% !important;
         aspect-ratio: 1 / 1 !important;
         object-fit: contain !important;
         border-radius: 6px;
         background-color: #ffffff;
         padding: 4px;
-    }
+    }}
     
-    /* Streamlit 버튼 스타일을 완전히 무력화하고 투명한 텍스트 버튼으로 변환 */
-    [data-testid="stSidebar"] div.stButton > button {
+    /* Streamlit 버튼 스타일 완전 초기화 (배경, 테두리, 그림자 제거) */
+    [data-testid="stSidebar"] div.stButton > button {{
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
@@ -45,29 +68,28 @@ st.markdown(
         text-align: center !important;
         padding: 6px 0 !important;
         margin-bottom: 4px;
-    }
+    }}
     
-    /* 버튼 내부 텍스트 기본 상태 (회색, 밑줄 없음) */
-    [data-testid="stSidebar"] div.stButton > button p {
-        color: #94a3b8 !important;
+    /* 기본 텍스트 스타일 (비선택 시 회색) */
+    [data-testid="stSidebar"] div.stButton > button p {{
         font-size: 14px !important;
-        font-weight: 500 !important;
         text-decoration: none !important;
-    }
+    }}
     
-    /* 마우스 올렸을 때 텍스트가 하얗게 변함 */
-    [data-testid="stSidebar"] div.stButton > button:hover p {
+    /* 마우스 올렸을 때 텍스트 하얗게 */
+    [data-testid="stSidebar"] div.stButton > button:hover p {{
         color: #ffffff !important;
         text-decoration: none !important;
-    }
+    }}
+
+    /* 각 버튼별 선택 상태 반영 */
+    div[data-testid="stSidebar"] button[key="btn_카카오"] p {{ {selected_kakao_css} }}
+    div[data-testid="stSidebar"] button[key="btn_토스"] p {{ {selected_toss_css} }}
+    div[data-testid="stSidebar"] button[key="btn_메타"] p {{ {selected_meta_css} }}
 </style>
 """,
     unsafe_allow_html=True,
 )
-
-# 세션 스테이트를 이용해 현재 선택된 채널 관리 (기본값: 카카오)
-if "selected_channel" not in st.session_state:
-  st.session_state.selected_channel = "카카오"
 
 
 # 외부 이미지 보안 차단 방지 및 Base64 변환 함수
@@ -110,29 +132,9 @@ with st.sidebar:
   channels = ["카카오", "토스", "메타"]
 
   for ch in channels:
-    is_selected = st.session_state.selected_channel == ch
-
-    # 선택된 채널일 경우 글씨를 하얗고 진하게(Bold) 고정하기 위한 동적 CSS 주입
-    if is_selected:
-      st.markdown(
-          f"""
-            <style>
-                div[data-testid="stSidebar"] button[key="btn_{ch}"] p {{
-                    color: #ffffff !important;
-                    font-weight: 700 !important;
-                    text-decoration: none !important;
-                }}
-            </style>
-            """,
-          unsafe_allow_html=True,
-      )
-
-    # 버튼 클릭 시 세션 상태 업데이트 후 즉시 새로고침
     if st.button(ch, key=f"btn_{ch}", use_container_width=True):
       st.session_state.selected_channel = ch
       st.rerun()
-
-channel_name = st.session_state.selected_channel
 
 # ==========================================
 # 4. 상단 타이틀 및 우측 광고주 선택 메뉴 배치
