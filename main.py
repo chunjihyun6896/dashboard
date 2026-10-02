@@ -22,7 +22,6 @@ channel_name = st.session_state.selected_channel
 # ==========================================
 # 2. 네이버 검색광고 API 설정 및 연동 함수
 # ==========================================
-CUSTOMER_ID = "2274356"
 ACCESS_LICENSE = (
     "0100000000d6006534e1b94c00ea1af84cba8177cfdb1b63426ac5ccbd6b1a0065232175e8"
 )
@@ -38,45 +37,25 @@ def generate_signature(timestamp, method, uri, secret_key):
   return base64.b64encode(signature).decode("utf-8")
 
 
-def get_naver_header(method, uri):
+def get_naver_header(method, uri, customer_id):
   timestamp = str(int(time.time() * 1000))
   signature = generate_signature(timestamp, method, uri, SECRET_KEY)
   return {
       "Content-Type": "application/json; charset=UTF-8",
       "X-Timestamp": timestamp,
       "X-API-KEY": ACCESS_LICENSE,
-      "X-Customer": str(CUSTOMER_ID),
+      "X-Customer": str(customer_id),
       "X-Signature": signature,
   }
 
 
-# 네이버 계정(고객) 정보 실시간 조회 함수 (광고주명 자동 인식)
 @st.cache_data(ttl=600)
-def fetch_naver_customer_info(customer_id):
-  uri = f"/customers/{customer_id}"
-  method = "GET"
-  url = BASE_URL + uri
-  headers = get_naver_header(method, uri)
-
-  try:
-    response = requests.get(url, headers=headers, timeout=5)
-    if response.status_code == 200:
-      data = response.json()
-      # 네이버 API 응답 구조에 따라 업체명(name 또는 companyName 등) 추출
-      return data.get("name") or data.get("companyName")
-    else:
-      return None
-  except Exception:
-    return None
-
-
-@st.cache_data(ttl=600)
-def fetch_naver_campaigns():
+def fetch_naver_campaigns(customer_id):
   uri = "/ncc/campaigns"
   method = "GET"
   url = BASE_URL + uri
-  params = {"nccAccountId": CUSTOMER_ID}
-  headers = get_naver_header(method, uri)
+  params = {"nccAccountId": customer_id}
+  headers = get_naver_header(method, uri, customer_id)
 
   try:
     response = requests.get(url, headers=headers, params=params, timeout=5)
@@ -89,12 +68,12 @@ def fetch_naver_campaigns():
 
 
 @st.cache_data(ttl=600)
-def fetch_naver_adgroups():
+def fetch_naver_adgroups(customer_id):
   uri = "/ncc/adgroups"
   method = "GET"
   url = BASE_URL + uri
-  params = {"nccAccountId": CUSTOMER_ID}
-  headers = get_naver_header(method, uri)
+  params = {"nccAccountId": customer_id}
+  headers = get_naver_header(method, uri, customer_id)
 
   try:
     response = requests.get(url, headers=headers, params=params, timeout=5)
@@ -130,18 +109,17 @@ def generate_ai_diagnosis(channel, advertiser, df_groups):
     )
     diagnosis_dict["urgent"] = (
         f"- **[미진행 안내]** 현재 **{advertiser}** 계정의 {channel}"
-        " 캠페인/그룹이 일시정지 또는 대기 상태입니다.\n- **조치 제안**: 네이버"
-        " 광고 시스템에서 해당 캠페인 및 광고 그룹의 상태를 '노출중'으로"
-        " 전환하고, 비즈채널 및 소재 검수 상태를 확인해 주세요."
+        " 캠페인/그룹이 일시정지 또는 대기 상태입니다.\n- **조치 제안**: 광고"
+        " 시스템에서 해당 캠페인 및 광고 그룹의 상태를 '노출중'으로 전환하고,"
+        " 검수 상태를 확인해 주세요."
     )
     diagnosis_dict["budget"] = (
         "- **예산 재배분 불가**: 광고가 집행 중이지 않아 소진 비용 및 전환"
-        " 데이터가 존재하지 않습니다. 광고 집행 개시 후 데이터를 바탕으로 예산"
-        " 최적화를 진행할 수 있습니다."
+        " 데이터가 존재하지 않습니다."
     )
     diagnosis_dict["creative"] = (
         "- **소재 점검 안내**: 현재 노출 중인 광고가 없으므로, 등록된 키워드와"
-        " 랜딩페이지, 이미지/텍스트 소재의 사전 검수 완료 여부를 점검하세요."
+        " 소재의 사전 검수 완료 여부를 점검하세요."
     )
   else:
     diagnosis_dict["status_msg"] = (
@@ -271,37 +249,45 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 6. 상단 타이틀 및 광고주 자동 인식 메뉴
+# 6. 상단 타이틀 및 광고주 선택 리스트 (번호 기반 커스텀)
 # ==========================================
 header_col1, header_col2 = st.columns([2, 1])
 
-# 네이버 채널일 경우 API로 실제 광고주명을 실시간 가져옴 (실패 시 기본값 사용)
-if channel_name == "네이버":
-  api_advertiser_name = fetch_naver_customer_info(CUSTOMER_ID)
-  current_advertiser_name = (
-      api_advertiser_name
-      if api_advertiser_name
-      else f"네이버 광고주 ({CUSTOMER_ID})"
+# 채널별 커스텀 광고주 번호 및 명칭 딕셔너리 설정
+advertisers_map = {
+    "네이버": {
+        "2274356": "A 브랜드 (주력 상품군)",
+        "2274357": "B 브랜드 (신규 런칭군)",
+        "2274358": "C 브랜드 (글로벌 라인)",
+    },
+    "카카오": {
+        "558725": "A 브랜드 (주력 상품군)",
+        "889922": "B 브랜드 (신규 런칭군)",
+        "774411": "C 브랜드 (글로벌 라인)",
+    },
+    "토스": {
+        "112233": "A 브랜드 (주력 상품군)",
+        "445566": "B 브랜드 (신규 런칭군)",
+    },
+    "메타": {
+        "998877": "A 브랜드 (주력 상품군)",
+        "332211": "C 브랜드 (글로벌 라인)",
+    },
+}
+
+current_advertisers = advertisers_map.get(
+    channel_name, {"558725": "A 브랜드 (주력 상품군)"}
+)
+
+with header_col2:
+  # 이미지와 같이 번호와 이름이 함께 표시되도록 설정 (`번호 (브랜드명)` 형태)
+  selected_id = st.selectbox(
+      "📌 광고주 선택",
+      options=list(current_advertisers.keys()),
+      format_func=lambda x: f"{current_advertisers[x]} ({x})",
   )
-  with header_col2:
-    st.info(
-        f"📌 **현재 연동된 네이버 계정**\n- ID: `{CUSTOMER_ID}`\n- 인식된"
-        f" 업체명: **{current_advertiser_name}**"
-    )
-else:
-  # 타 채널의 경우 기존 선택형태 유지
-  advertisers = {
-      "558725": "A 브랜드 (주력 상품군)",
-      "889922": "B 브랜드 (신규 런칭군)",
-      "774411": "C 브랜드 (글로벌 라인)",
-  }
-  with header_col2:
-    selected_id = st.selectbox(
-        "📌 광고주 선택",
-        options=list(advertisers.keys()),
-        format_func=lambda x: f"{advertisers[x]} ({x})",
-    )
-  current_advertiser_name = advertisers[selected_id]
+
+current_advertiser_name = current_advertisers[selected_id]
 
 with header_col1:
   st.title(f"📊 [{channel_name}] {current_advertiser_name} 성과 대시보드")
@@ -399,10 +385,10 @@ st.subheader(
     f"📂 2. [{channel_name}] 캠페인 그룹별 실시간 소진 내역 ({selected_month})"
 )
 
-# 네이버 채널 데이터 연동
+# 네이버 채널 선택 시 선택한 번호(Customer ID)로 API 연동
 if channel_name == "네이버":
-  with st.spinner("네이버 광고 그룹 정보를 실시간 불러오는 중..."):
-    adgroups_data = fetch_naver_adgroups()
+  with st.spinner(f"네이버 광고 그룹 정보 (ID: {selected_id}) 불러오는 중..."):
+    adgroups_data = fetch_naver_adgroups(selected_id)
 
   if adgroups_data and len(adgroups_data) > 0:
     rows = []
@@ -436,8 +422,8 @@ if channel_name == "네이버":
         "ROAS",
     ])
     st.info(
-        "현재 네이버 계정에 등록된 광고 그룹이 없거나 데이터를 불러오지"
-        " 못했습니다."
+        f"현재 네이버 계정({selected_id})에 등록된 광고 그룹이 없거나 데이터를"
+        " 불러오지 못했습니다."
     )
 else:
   df_groups = pd.DataFrame(columns=[
