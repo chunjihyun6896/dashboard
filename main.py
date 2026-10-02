@@ -1,5 +1,4 @@
 import base64
-from io import BytesIO
 import pandas as pd
 import requests
 import streamlit as st
@@ -10,7 +9,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. 커스텀 CSS (어두운 남색 미니 사이드바 및 로고 1:1 비율 정렬)
+# 2. 커스텀 CSS (사이드바 규격, 로고 1:1 정렬, 텍스트형 버튼 스타일링)
 # ==========================================
 st.markdown(
     """
@@ -33,26 +32,27 @@ st.markdown(
         aspect-ratio: 1 / 1 !important;
         object-fit: contain !important;
         border-radius: 6px;
-        background-color: #ffffff; /* 로고 배경이 투명할 경우 깔끔하게 보이도록 흰색 지정 */
+        background-color: #ffffff;
         padding: 4px;
     }
-    /* 사이드바 내 라디오 버튼 스타일을 작은 버튼 형태처럼 보이게 커스텀 */
-    [data-testid="stSidebar"] .stRadio div[role="radiogroup"] {
-        gap: 0.5rem;
+    
+    /* 텍스트 클릭형 버튼 스타일 커스텀 (배경 없애고 텍스트만 보이게) */
+    [data-testid="stSidebar"] div.stButton > button {
+        background-color: transparent !important;
+        border: none !important;
+        color: #94a3b8 !important; /* 기본 회색 텍스트 */
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        width: 100% !important;
+        text-align: center !important;
+        padding: 6px 0 !important;
+        box-shadow: none !important;
     }
-    [data-testid="stSidebar"] .stRadio label {
-        background-color: #334155;
-        color: white;
-        padding: 6px 10px;
-        border-radius: 6px;
-        text-align: center;
-        font-size: 12px;
-        cursor: pointer;
-        display: block;
-        margin-bottom: 4px;
-    }
-    [data-testid="stSidebar"] .stRadio label:hover {
-        background-color: #475569;
+    /* 마우스 올렸을 때 */
+    [data-testid="stSidebar"] div.stButton > button:hover {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 4px;
     }
 </style>
 """,
@@ -64,9 +64,7 @@ if "selected_channel" not in st.session_state:
   st.session_state.selected_channel = "카카오"
 
 
-# ==========================================
-# 이미지 로딩 함수 (외부 링크 보안 차단/엑박 방지를 위한 Base64 변환)
-# ==========================================
+# 외부 이미지 보안 차단 방지 및 Base64 변환 함수
 @st.cache_data
 def get_base64_image(url):
   try:
@@ -81,10 +79,10 @@ def get_base64_image(url):
 
 
 # ==========================================
-# 3. 좌측 미니 사이드바 구성 (Base64 임베딩 로고 + 채널 선택 버튼들)
+# 3. 좌측 미니 사이드바 구성 (로고 + 텍스트 클릭형 메뉴)
 # ==========================================
 with st.sidebar:
-  # 1) 자사 로고 이미지 안전하게 불러오기
+  # 1) 자사 로고 이미지 배치
   logo_url = "https://postfiles.pstatic.net/MjAyNjEwMDJfMTk3/MDAxNzkwOTI2NjI1NDQ3.onXBC4S3HbypXqgaIBTI9nkbxszhk00IW9KGCVlcXmEg.bpswq-tDbouId6KoFEK7PUFcMZCE8VkQ3_oKcqkIDc8g.JPEG/KakaoTalk_20261002_100449413_01.jpg?type=w966"
   base64_logo = get_base64_image(logo_url)
 
@@ -96,40 +94,28 @@ with st.sidebar:
         ' margin-bottom:5px;">',
         unsafe_allow_html=True,
     )
-  else:
-    st.warning("로고 로드 실패")
 
   st.markdown(
-      "<hr style='margin: 10px 0; border-color: #334155;'>",
+      "<hr style='margin: 15px 0; border-color: #334155;'>",
       unsafe_allow_html=True,
   )
 
-  # 2) 하단에 조그맣게 들어갈 채널 선택
-  st.markdown(
-      "<p style='color: #94a3b8; font-size: 11px; text-align: center;"
-      " margin-bottom: 5px;'>채널 선택</p>",
-      unsafe_allow_html=True,
-  )
+  # 2) 채널 선택 상단 텍스트 및 라디오박스 완전 제거 후 텍스트 클릭형 버튼 배치
+  channels = ["카카오", "토스", "메타"]
 
-  channel_options = ["카카오", "토스", "메타"]
-  current_idx = (
-      channel_options.index(st.session_state.selected_channel)
-      if st.session_state.selected_channel in channel_options
-      else 0
-  )
+  for ch in channels:
+    # 현재 선택된 채널일 경우 텍스트 색상을 하얗게 강조
+    is_selected = st.session_state.selected_channel == ch
+    btn_label = f"✨ {ch}" if is_selected else ch
 
-  selected_channel = st.radio(
-      "채널 선택",
-      options=channel_options,
-      index=current_idx,
-      label_visibility="collapsed",
-  )
-  st.session_state.selected_channel = selected_channel
+    if st.button(btn_label, key=f"btn_{ch}", use_container_width=True):
+      st.session_state.selected_channel = ch
+      st.rerun()  # 클릭 즉시 화면 갱신
 
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 4. 상단 타이틀 및 우측 광고주 선택 메뉴 배치 (원래 위치 유지)
+# 4. 상단 타이틀 및 우측 광고주 선택 메뉴 배치
 # ==========================================
 advertisers = {
     "558725": "A 브랜드 (주력 상품군)",
