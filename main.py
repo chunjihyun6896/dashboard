@@ -15,7 +15,7 @@ if "selected_channel" not in st.session_state:
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 커스텀 CSS (기본 흰색 텍스트, 선택된 항목만 노란색 볼드체)
+# 2. 커스텀 CSS (사이드바 및 기본 버튼 스타일)
 # ==========================================
 st.markdown(
     """
@@ -42,7 +42,7 @@ st.markdown(
         padding: 4px;
     }
     
-    /* Streamlit 기본 버튼 스타일 초기화 (배경 없음, 박스 없음) */
+    /* Streamlit 기본 버튼 기본 스타일 (비선택 상태) */
     [data-testid="stSidebar"] div.stButton > button {
         background-color: transparent !important;
         border: none !important;
@@ -71,13 +71,17 @@ st.markdown(
 )
 
 # ==========================================
-# 선택된 메뉴 버튼만 '노란색 볼드체'로 동적 변경
+# 현재 선택된 채널 버튼에만 특별한 스타일 적용 (배경색 + 노란색 텍스트)
 # ==========================================
 st.markdown(
     f"""
 <style>
+    div[data-testid="stSidebar"] button[key="btn_{channel_name}"] {{
+        background-color: #334155 !important; /* 선택된 항목 배경 표시 */
+        border: 1px solid #475569 !important;
+    }}
     div[data-testid="stSidebar"] button[key="btn_{channel_name}"] p {{
-        color: #facc15 !important; /* 선명한 노란색 */
+        color: #facc15 !important; /* 선명한 노란색 텍스트 */
         font-weight: 700 !important;
     }}
 </style>
