@@ -1,4 +1,7 @@
+import base64
+from io import BytesIO
 import pandas as pd
+import requests
 import streamlit as st
 
 # 1. 페이지 기본 설정 (와이드 모드)
@@ -60,13 +63,41 @@ st.markdown(
 if "selected_channel" not in st.session_state:
   st.session_state.selected_channel = "카카오"
 
+
 # ==========================================
-# 3. 좌측 미니 사이드바 구성 (제공해주신 이미지 링크 적용 + 채널 선택 버튼들)
+# 이미지 로딩 함수 (외부 링크 보안 차단/엑박 방지를 위한 Base64 변환)
+# ==========================================
+@st.cache_data
+def get_base64_image(url):
+  try:
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+      encoded = base64.b64encode(response.content).decode("utf-8")
+      return f"data:image/jpeg;base64,{encoded}"
+  except Exception:
+    pass
+  return ""
+
+
+# ==========================================
+# 3. 좌측 미니 사이드바 구성 (Base64 임베딩 로고 + 채널 선택 버튼들)
 # ==========================================
 with st.sidebar:
-  # 1) 자사 로고 이미지 배치 (요청하신 새로운 링크 적용)
+  # 1) 자사 로고 이미지 안전하게 불러오기
   logo_url = "https://postfiles.pstatic.net/MjAyNjEwMDJfMTk3/MDAxNzkwOTI2NjI1NDQ3.onXBC4S3HbypXqgaIBTI9nkbxszhk00IW9KGCVlcXmEg.bpswq-tDbouId6KoFEK7PUFcMZCE8VkQ3_oKcqkIDc8g.JPEG/KakaoTalk_20261002_100449413_01.jpg?type=w966"
-  st.image(logo_url, use_container_width=True)
+  base64_logo = get_base64_image(logo_url)
+
+  if base64_logo:
+    st.markdown(
+        f'<img src="{base64_logo}"'
+        ' style="width:100%; aspect-ratio:1/1; object-fit:contain;'
+        ' border-radius:6px; background:#ffffff; padding:4px;'
+        ' margin-bottom:5px;">',
+        unsafe_allow_html=True,
+    )
+  else:
+    st.warning("로고 로드 실패")
 
   st.markdown(
       "<hr style='margin: 10px 0; border-color: #334155;'>",
