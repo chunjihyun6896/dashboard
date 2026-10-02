@@ -249,7 +249,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 6. 상단 타이틀 및 광고주 선택 리스트 (번호 기반 커스텀)
+# 6. 상단 타이틀 및 광고주 선택 리스트 (번호 우선 노출)
 # ==========================================
 header_col1, header_col2 = st.columns([2, 1])
 
@@ -280,7 +280,7 @@ current_advertisers = advertisers_map.get(
 )
 
 with header_col2:
-  # 이미지와 같이 번호와 이름이 함께 표시되도록 설정 (`번호 (브랜드명)` 형태)
+  # 💡 수정 포인트: 번호(ID)가 먼저 나오도록 포맷팅 변경 (`브랜드명 (번호)` -> `번호 (브랜드명)`)
   selected_id = st.selectbox(
       "📌 광고주 선택",
       options=list(current_advertisers.keys()),
