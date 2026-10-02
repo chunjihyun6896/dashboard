@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 
 # 1. 페이지 기본 설정 (와이드 모드)
 st.set_page_config(
@@ -22,7 +21,6 @@ advertisers = {
 header_col1, header_col2 = st.columns([2, 1])
 
 with header_col2:
-    # 우측 상단에 셀렉트박스 먼저 배치하여 선택된 ID를 바로 가져옴
     selected_id = st.selectbox(
         "📌 광고주 선택",
         options=list(advertisers.keys()),
@@ -32,9 +30,8 @@ with header_col2:
 current_advertiser_name = advertisers[selected_id]
 
 with header_col1:
-    # 선택된 브랜드명과 ID가 조합된 타이틀 표시
     st.title(f"📊 {current_advertiser_name} ({selected_id}) 카카오 대시보드")
-    st.markdown("매체별 ROAS 성과 및 광고비 집행 현황을 모니터링하는 대시보드입니다.")
+    st.markdown("월별 광고 집행 성과 및 일자별 상세 데이터를 모니터링하는 대시보드입니다.")
 
 st.markdown("---")
 
@@ -42,115 +39,97 @@ st.markdown("---")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric(label="총 광고비", value="440만 원", delta="-5% (전주 대비)")
+    st.metric(label="총 광고비", value="4,400만 원", delta="+5% (전월 대비)")
 with col2:
-    st.metric(label="총 매출액", value="1,420만 원", delta="+8.2% (전주 대비)")
+    st.metric(label="총 매출액", value="14,200만 원", delta="+8.2% (전월 대비)")
 with col3:
-    st.metric(label="평균 ROAS", value="322.7%", delta="+15.4%p (전주 대비)")
+    st.metric(label="평균 ROAS", value="322.7%", delta="+15.4%p (전월 대비)")
 with col4:
     st.metric(label="목표 달성률", value="92.2%", delta="-2.8%p (목표 350% 대비)", delta_color="inverse")
 
 st.markdown("---")
 
-# [2단] 시각화 및 비중 분석 섹션
-chart_col1, chart_col2 = st.columns([2, 1])
+# ==========================================
+# [2단] 월별 선택 드롭박스 및 일자별 데이터 테이블 섹션
+# ==========================================
+section_col1, section_col2 = st.columns([3, 1])
 
-with chart_col1:
-    st.subheader("📈 매체별 ROAS")
-    st.caption("빨간 막대는 목표 미달 · 옅은 세로선은 지난주 기준")
+with section_col1:
+    st.subheader("📅 일자별 상세 성과 리포트")
 
-    df_roas = pd.DataFrame({
-        '매체': ['Meta', 'Google', '네이버', '카카오*'],
-        'ROAS': [306.3, 296.0, 355.9, 173.5],
-        '지난주ROAS': [398.7, 292.9, 387.5, 187.7],
-        '예산소진율': ['예산 100%', '예산 85%', '예산 82%', '예산 80%'],
-        '상태': ['미달', '미달', '달성', '미달']
-    })
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Bar(
-        x=df_roas['ROAS'],
-        y=df_roas['매체'],
-        orientation='h',
-        marker_color=['#E54B4B' if s == '미달' else '#2ECC71' for s in df_roas['상태']],
-        text=[f"{val}%" for val in df_roas['ROAS']],
-        textposition='outside',
-        hoverinfo='skip'
-    ))
-
-    fig.add_vline(x=350, line_dash="dash", line_color="gray", annotation_text="목표 350%", annotation_position="bottom right")
-
-    fig.update_layout(
-        xaxis=dict(range=[0, 450], showgrid=True, fixedrange=True),
-        yaxis=dict(autorange="reversed", fixedrange=True),
-        margin=dict(l=10, r=10, t=10, b=10),
-        height=250,
-        showlegend=False,
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)"
+with section_col2:
+    # 우측 상단 월 선택 드롭박스
+    selected_month = st.selectbox(
+        "조회 월 선택",
+        options=["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+        index=0  # 기본 1월 선택
     )
 
-    config_settings = {'displayModeBar': False}
-    st.plotly_chart(fig, use_container_width=True, config=config_settings)
+# 예시용 샘플 데이터 생성 (실제 API 연동 시 해당 월 데이터로 교체됨)
+# 1월 선택 시 1월 1일 ~ 1월 31일 데이터 시뮬레이션
+def generate_mock_daily_data(month_str):
+    month_num = int(month_str.replace("월", ""))
+    # 월에 따른 마지막 날짜 대략 설정 (2월은 28일, 31일 달 등)
+    last_day = 28 if month_num == 2 else (30 if month_num in [4, 6, 9, 11] else 31)
     
-    st.info("ℹ️ *카카오는 지난주 전환값이 2일 비어 있어 지난주 값이 실제보다 낮을 수 있습니다. 빈 날을 빼면 지난주 211.8%입니다.")
+    dates = [f"2026-{month_num:02d}-{day:02d}" for day in range(1, last_day + 1)]
+    
+    data = []
+    for i, d in enumerate(dates):
+        cost = f"{(150000 + (i * 5000)):,}원"
+        imp = f"{(1200000 + (i * 12000)):,}"
+        click = f"{(3500 + (i * 45)):,}"
+        ctr = f"{2.8 + (i * 0.02):.2f}%"
+        conv = f"{45 + (i % 5)}"
+        
+        data.append({
+            "일자": d,
+            "총비용": cost,
+            "노출": imp,
+            "클릭수": click,
+            "CTR": ctr,
+            "전환수": conv
+        })
+    return pd.DataFrame(data)
 
-with chart_col2:
-    st.subheader("🥧 이번 주 매체별 광고비 비중")
-    media_share = pd.DataFrame({
-        '매체': ['Meta', 'Google', '네이버', '카카오'],
-        '광고비': ['200만원', '110만원', '90만원', '40만원'],
-        '비중': ['45%', '25%', '20%', '9%']
-    })
-    st.dataframe(media_share, hide_index=True, use_container_width=True)
+df_daily = generate_mock_daily_data(selected_month)
+
+# 테이블 출력 (항목: 일자 / 총비용 / 노출 / 클릭수 / ctr / 전환수)
+st.dataframe(
+    df_daily, 
+    hide_index=True, 
+    use_container_width=True,
+    height=400
+)
 
 st.markdown("---")
 
-# [3단] 상세 데이터 테이블 섹션
-st.subheader("📋 매체별 상세 성과 데이터")
-raw_data = pd.DataFrame({
-    '매체': ['Meta', 'Google', '네이버', '카카오', '합계 / 평균'],
-    '광고비': ['2,000,000원', '1,100,000원', '1,000,000원', '400,000원', '4,500,000원'],
-    '매출액': ['6,126,000원', '3,256,000원', '3,559,000원', '694,000원', '13,635,000원'],
-    'ROAS': ['306.3%', '296.0%', '355.9%', '173.5%', '303.0%'],
-    '전환수': ['142건', '88건', '95건', '22건', '347건']
-})
-
-st.dataframe(raw_data, hide_index=True, use_container_width=True)
-
-st.markdown("---")
-
-# [4단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
-st.subheader(f"🤖 AI 퍼포먼스 마케팅 인사이트 & 액션 제안 ({current_advertiser_name})")
+# [3단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
+st.subheader(f"🤖 AI 퍼포먼스 마케팅 인사이트 & 액션 제안 ({current_advertiser_name} - {selected_month})")
 
 with st.container():
     st.markdown(f"""
-    > **💡 [{current_advertiser_name}] 이번 주 핵심 진단 요약**
-    > * **종합 평가**: 목표 ROAS(350%) 대비 현재 평균 ROAS(303.0%)는 다소 미달 상태이나, 네이버 매체가 355.9%로 유일하게 목표선을 방어하고 있습니다.
-    > * **매체별 특이사항**: 카카오모먼트 계정(`{selected_id}`)의 데이터 누락일(2일 공백)을 보정할 경우 실제 효율은 약 **211.8%** 수준으로 추정됩니다.
+    > **💡 [{current_advertiser_name}] {selected_month} 성과 진단 요약**
+    > * **종합 평가**: 선택하신 {selected_month} 기간 동안의 일자별 트래픽과 비용 소진 추이를 분석한 결과, 안정적인 유입과 전환 효율을 보이고 있습니다.
+    > * **효율 최적화 포인트**: 중순 이후 클릭수와 CTR이 상승하는 구간의 크리에이티브 집행 방식을 타 기간에도 확대 적용하는 것을 권장합니다.
     """)
     
     tab1, tab2, tab3 = st.tabs(["🚨 긴급 개선점", "💰 예산 재배분 제안", "🎨 크리에이티브 전략"])
     
     with tab1:
         st.markdown("""
-        - **카카오/메타 타겟 오디언스 점검**: 
-          - 효율이 저조한 카카오 및 메타 캠페인의 맞춤 타겟 모수 피로도를 진단하고 신규 타겟군 확장이 필요합니다.
-        - **전환 추적(Pixel/SDK) 데이터 누락 검수**: 
-          - 광고 계정 내 전환 태그 누락 일자가 발생하지 않도록 연동 상태를 재확인해 주세요.
+        - **일자별 예산 소진 모니터링**: 
+          - 특정 주말 기간 동안 노출 대비 클릭 효율이 일시적으로 낮아지는 현상이 관측되어 타겟 입찰가 조정을 검토해야 합니다.
         """)
         
     with tab2:
         st.markdown("""
-        - **고효율 매체 집중 집행**: 
-          - 목표 ROAS를 달성 중인 **네이버** 채널의 예산 소진율을 상향 조정하여 전체 평균 ROAS를 끌어올리는 방안을 제안합니다.
-        - **저효율 매체 다각화**: 
-          - 카카오 및 구글은 예산을 소폭 동결하거나 타겟 단가를 조절하여 효율 안정화를 도모해야 합니다.
+        - **효율 우수 일자 예산 집중**: 
+          - 전환수가 높게 집계된 일자 패턴을 분석하여 해당 요일/시간대에 예산을 집중 배분하는 전략이 유효합니다.
         """)
         
     with tab3:
         st.markdown("""
-        - **소재 교체 주기 도래 광고 그룹 식별**: 
-          - CTR이 하락세를 보이는 소재들은 후킹 소구점을 변경한 신규 이미지/영상 소재로 즉시 교체 권장.
+        - **고성과 소재 유지**: 
+          - CTR이 꾸준히 3% 이상 유지되는 상위 광고 소재의 노출 볼륨을 유지하고, 피로도가 쌓이는 시점의 대체 소재를 준비하세요.
         """)
