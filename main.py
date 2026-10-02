@@ -87,38 +87,44 @@ def fetch_naver_adgroups():
 
 
 # ==========================================
-# 3. AI 진단 로직 함수 (데이터 기반 동적 생성)
+# 3. AI 진단 로직 함수 (미진행 상태 정밀 판별)
 # ==========================================
 def generate_ai_diagnosis(channel, advertiser, df_groups):
-  # 실제 데이터 집행 여부 확인 (그룹 데이터가 존재하고 상태가 'UP' 또는 'ELIGIBLE' 등이거나 비용이 발생하는지 체크)
-  is_running = False
-  if not df_groups.empty:
-    # 예시로 상태 항목에 대기중/미집행이 아닌 항목이 포함되어 있는지 혹은 데이터가 있는지 확인
-    active_check = df_groups[~df_groups["상태"].str.contains("대기|미진행|중지", na=False)]
-    if len(active_check) > 0:
-      is_running = True
+  # 데이터가 아예 없거나, 모든 그룹의 상태에 '미진행' 또는 '대기중'이 포함되어 있으면 미진행으로 판단
+  is_running = True
+
+  if df_groups.empty:
+    is_running = False
+  else:
+    # '미진행', '대기중', '중지', 'PAUSED' 등의 키워드가 포함된 비율 체크
+    stopped_rows = df_groups[
+        df_groups["상태"].str.contains("미진행|대기중|중지|PAUSED|STOP", na=False)
+    ]
+    # 모든 그룹이 미진행/대기 상태인 경우
+    if len(stopped_rows) == len(df_groups):
+      is_running = False
 
   diagnosis_dict = {}
 
   if not is_running:
     diagnosis_dict["status_msg"] = (
-        f"현재 **[{channel}]** 채널은 등록된 광고가 **미진행** 상태이거나 집행"
-        " 이력이 확인되지 않습니다."
+        f"현재 **[{channel}]** 채널은 등록된 광고가 **미진행** 상태이며, 정상적으로"
+        " 집행되고 있지 않습니다."
     )
     diagnosis_dict["urgent"] = (
         f"- **[미진행 안내]** 현재 **{advertiser}** 계정의 {channel}"
-        " 캠페인/그룹이 활성화되지 않았거나 소진 비용이 0원입니다.\n- **조치"
-        " 제안**: 캠페인 및 광고 그룹의 상태를 '노출중'으로 변경하고, 예산 및"
-        " 입찰가 설정 상태를 점검해 주세요."
+        " 캠페인/그룹이 일시정지 또는 대기 상태입니다.\n- **조치 제안**: 네이버"
+        " 광고 시스템에서 해당 캠페인 및 광고 그룹의 상태를 '노출중'으로"
+        " 전환하고, 비즈채널 및 소재 검수 상태를 확인해 주세요."
     )
     diagnosis_dict["budget"] = (
-        "- **예산 배분 불가**: 현재 광고가 집행되고 있지 않아 유의미한 소진"
-        " 데이터가 없으므로 예산 재배분을 산출할 수 없습니다. 광고 집행 개시"
-        " 후 다시 진단해 주세요."
+        "- **예산 재배분 불가**: 광고가 집행 중이지 않아 소진 비용 및 전환"
+        " 데이터가 존재하지 않습니다. 광고 집행 개시 후 데이터를 바탕으로 예산"
+        " 최적화를 진행할 수 있습니다."
     )
     diagnosis_dict["creative"] = (
-        "- **소재 점검**: 등록된 광고 소재(이미지/문구)의 검수 상태를"
-        " 확인하시고, 노출 전 타겟팅 및 키워드/소재 세팅을 완료해 주세요."
+        "- **소재 점검 안내**: 현재 노출 중인 광고가 없으므로, 등록된 키워드와"
+        " 랜딩페이지, 이미지/텍스트 소재의 사전 검수 완료 여부를 점검하세요."
     )
   else:
     diagnosis_dict["status_msg"] = (
@@ -126,16 +132,16 @@ def generate_ai_diagnosis(channel, advertiser, df_groups):
         " 실시간 성과가 수집되고 있습니다."
     )
     diagnosis_dict["urgent"] = (
-        "- **효율 모니터링**: 일부 그룹의 클릭률(CTR)과 전환율을 점검하여"
-        " 저효율 소재를 필터링하세요."
+        "- **효율 모니터링**: 라이브 중인 그룹의 클릭률(CTR)과 전환율을"
+        " 점검하여 저효율 세부 요소를 관리하세요."
     )
     diagnosis_dict["budget"] = (
-        "- **예산 최적화**: 전환율이 높은 상위 그룹에 예산을 집중하고, 소진이"
-        " 더딘 캠페인은 입찰가를 조정하세요."
+        "- **예산 최적화**: 성과가 우수한 그룹에 예산을 증액하고, 효율이"
+        " 저조한 그룹은 입찰가를 조정하세요."
     )
     diagnosis_dict["creative"] = (
-        "- **소재 교체 제안**: 피로도가 높아진 소재는 새로운 후크 메시지나"
-        " 배너로 교체 테스트를 권장합니다."
+        "- **소재 교체 제안**: 노출 피로도가 높은 소재는 새로운 메시지나"
+        " 디자인으로 교체 테스트를 권장합니다."
     )
 
   return diagnosis_dict
@@ -371,9 +377,16 @@ if channel_name == "네이버":
   if adgroups_data and len(adgroups_data) > 0:
     rows = []
     for group in adgroups_data:
+      # 네이버 API 상태값을 보기 쉽게 가공
+      raw_status = group.get("status", "")
+      status_display = (
+          "대기중/미진행"
+          if raw_status in ["PAUSED", "STOP", "SUSPENDED"]
+          else raw_status
+      )
       rows.append({
           "그룹명": group.get("name"),
-          "상태": group.get("status"),
+          "상태": status_display,
           "총비용": "0원",
           "노출": "0",
           "클릭수": "0",
@@ -416,7 +429,7 @@ if not df_groups.empty:
 st.markdown("---")
 
 # ==========================================
-# 9. AI 퍼포먼스 마케팅 진단 & 제안 (실시간 판단 반영)
+# 9. AI 퍼포먼스 마케팅 진단 & 제안 (미진행 상태 정밀 반영)
 # ==========================================
 st.subheader(
     f"🤖 AI 퍼포먼스 마케팅 진단 & 제안 ({channel_name} /"
