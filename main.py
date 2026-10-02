@@ -148,8 +148,8 @@ st.subheader(f"🤖 AI 퍼포먼스 마케팅 인사이트 & 액션 제안 ({cur
 
 with st.container():
     st.markdown(f"""
-    > **💡 [{current_advertiser_name}] {selected_month} 계층별 진단 요약**
-    > * **일자/그룹/소재 종합 평가**: 선택하신 {selected_month 기간} 동안 그룹별 소진 내역과 크리에이티브 효율을 교차 분석한 결과, 고효율 소재를 활용한 리타겟팅 그룹의 전환수 기여도가 가장 높게 나타났습니다.
+    > **💡 [{current_advertiser_name}] {selected_month} 기간 동안의 계층별 진단 요약**
+    > * **일자/그룹/소재 종합 평가**: 선택하신 {selected_month} 동안 그룹별 소진 내역과 크리에이티브 효율을 교차 분석한 결과, 고효율 소재를 활용한 리타겟팅 그룹의 전환수 기여도가 가장 높게 나타났습니다.
     """)
     
     tab1, tab2, tab3 = st.tabs(["🚨 긴급 개선점", "💰 예산 재배분 제안", "🎨 크리에이티브 전략"])
