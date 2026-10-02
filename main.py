@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 
 # 1. 페이지 기본 설정 (와이드 모드)
 st.set_page_config(
-    page_title="마케팅 성과 대시보드",
+    page_title="카카오 마케팅 성과 대시보드",
     page_icon="📊",
     layout="wide"
 )
@@ -21,12 +21,8 @@ advertisers = {
 # ==========================================
 header_col1, header_col2 = st.columns([2, 1])
 
-with header_col1:
-    st.title("📊 통합 마케팅 성과 대시보드")
-    st.markdown("매체별 ROAS 성과 및 광고비 집행 현황을 모니터링하는 대시보드입니다.")
-
 with header_col2:
-    # 우측 상단에 셀렉트박스 배치
+    # 우측 상단에 셀렉트박스 먼저 배치하여 선택된 ID를 바로 가져옴
     selected_id = st.selectbox(
         "📌 광고주 선택",
         options=list(advertisers.keys()),
@@ -35,8 +31,11 @@ with header_col2:
 
 current_advertiser_name = advertisers[selected_id]
 
-st.markdown("---")
-st.markdown(f"**현재 선택된 계정**: `{current_advertiser_name}` (카카오모먼트 계정 ID: `{selected_id}`)")
+with header_col1:
+    # 선택된 브랜드명과 ID가 조합된 타이틀 표시
+    st.title(f"📊 {current_advertiser_name} ({selected_id}) 카카오 대시보드")
+    st.markdown("매체별 ROAS 성과 및 광고비 집행 현황을 모니터링하는 대시보드입니다.")
+
 st.markdown("---")
 
 # [1단] 핵심 지표 요약 (Metric Cards)
