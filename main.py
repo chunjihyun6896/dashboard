@@ -2,38 +2,39 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# 1. 페이지 기본 설정 (와이드 모드, 사이드바 항상 펼쳐짐 고정)
+# 1. 페이지 기본 설정 (와이드 모드)
 st.set_page_config(
     page_title="마케팅 성과 대시보드",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # ==========================================
-# 2. 다중 광고주 관리 설정 (사이드바)
+# 2. 상단 광고주 선택 메뉴 (사이드바 대체)
 # ==========================================
-st.sidebar.header("⚙️ 광고 계정 관리")
+st.title("📊 통합 마케팅 성과 대시보드")
+st.markdown("매체별 ROAS 성과 및 광고비 집행 현황을 모니터링하는 대시보드입니다.")
+st.markdown("---")
 
+# 관리 중인 광고주 리스트
 advertisers = {
     "558725": "A 브랜드 (주력 상품군)",
     "889922": "B 브랜드 (신규 런칭군)",
     "774411": "C 브랜드 (글로벌 라인)"
 }
 
-selected_id = st.sidebar.selectbox(
-    "분석할 광고주를 선택하세요",
-    options=list(advertisers.keys()),
-    format_func=lambda x: f"{advertisers[x]} ({x})"
-)
+# 화면 상단에 가로형 셀렉트박스 배치
+col_sel1, col_sel2 = st.columns([2, 3])
+with col_sel1:
+    selected_id = st.selectbox(
+        "📌 분석할 광고주를 선택하세요",
+        options=list(advertisers.keys()),
+        format_func=lambda x: f"{advertisers[x]} ({x})"
+    )
 
 current_advertiser_name = advertisers[selected_id]
 
-# ==========================================
-# 3. 대시보드 상단 타이틀 (선택된 광고주 연동)
-# ==========================================
-st.title(f"📊 [{current_advertiser_name}] 주간 마케팅 성과 대시보드")
-st.markdown(f"선택된 카카오모먼트 계정 ID: `{selected_id}` | 매체별 ROAS 및 광고비 집행 현황 모니터링")
+st.markdown(f"**현재 선택된 계정**: `{current_advertiser_name}` (카카오모먼트 계정 ID: `{selected_id}`)")
 st.markdown("---")
 
 # [1단] 핵심 지표 요약 (Metric Cards)
@@ -80,8 +81,8 @@ with chart_col1:
     fig.add_vline(x=350, line_dash="dash", line_color="gray", annotation_text="목표 350%", annotation_position="bottom right")
 
     fig.update_layout(
-        xaxis=dict(range=[0, 450], showgrid=True, fixedrange=True),  # X축 확대/축소 고정
-        yaxis=dict(autorange="reversed", fixedrange=True),           # Y축 확대/축소 고정
+        xaxis=dict(range=[0, 450], showgrid=True, fixedrange=True),
+        yaxis=dict(autorange="reversed", fixedrange=True),
         margin=dict(l=10, r=10, t=10, b=10),
         height=250,
         showlegend=False,
@@ -89,7 +90,6 @@ with chart_col1:
         paper_bgcolor="rgba(0,0,0,0)"
     )
 
-    # 그래프 확대/축소 툴바를 완전히 숨기는 설정 적용
     config_settings = {'displayModeBar': False}
     st.plotly_chart(fig, use_container_width=True, config=config_settings)
     
