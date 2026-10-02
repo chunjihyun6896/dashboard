@@ -31,7 +31,7 @@ current_advertiser_name = advertisers[selected_id]
 
 with header_col1:
     st.title(f"📊 {current_advertiser_name} ({selected_id}) 카카오 대시보드")
-    st.markdown("월별 광고 집행 성과 및 일자별·그룹별·소재별 상세 데이터를 모니터링하는 대시보드입니다.")
+    st.markdown("월별 광고 집행 성과 분석부터 AI 광고 소재 제작까지 가능한 통합 퍼포먼스 마케팅 솔루션입니다.")
 
 st.markdown("---")
 
@@ -118,10 +118,10 @@ st.dataframe(df_groups, hide_index=True, use_container_width=True)
 st.markdown("---")
 
 # ==========================================
-# [4단] 소재별 소진 내역 테이블 (소재 유형 및 미리보기 정보 포함)
+# [4단] 소재별 소진 내역 테이블 (소재 유형 및 문구 포함)
 # ==========================================
 st.subheader(f"🎨 3. 소재별 소진 내역 ({selected_month})")
-st.caption("개별 크리에이티브(이미지/영상 형태 및 실물 확인) 성과 요약")
+st.caption("개별 크리에이티브(이미지/영상 형태 및 문구 확인) 성과 요약")
 
 df_creatives = pd.DataFrame({
     '소재 유형': ["이미지 (피드)", "동영상 (숏폼)", "이미지 (와이드)", "이미지 (카드형)", "동영상 (인터뷰)"],
@@ -144,7 +144,42 @@ st.dataframe(df_creatives, hide_index=True, use_container_width=True)
 
 st.markdown("---")
 
-# [5단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
+# ==========================================
+# [5단] 🪄 AI 광고 소재 스튜디오 (새로운 기능)
+# ==========================================
+st.subheader("🪄 4. AI 광고 소재 생성 스튜디오")
+st.caption("원하시는 문구, 사이즈, 콘셉트를 입력하면 광고 집행용 시안 이미지를 실시간으로 생성해 드립니다.")
+
+with st.container():
+    col_input1, col_input2 = st.columns(2)
+    
+    with col_input1:
+        ad_copy = st.text_input("📝 광고 메인 문구 입력", placeholder="예: 겨울 시즌오프 최대 70% 파격 할인!")
+        ad_size = st.selectbox("📐 광고 사이즈 선택", options=["피드형 (1200 x 628)", "스퀘어형 (1000 x 1000)", "스토리형 (1080 x 1920)"])
+        
+    with col_input2:
+        ad_concept = st.text_area("🎨 원하는 비주얼 콘셉트 / 분위기", placeholder="예: 따뜻하고 아늑한 감성의 실내 인테리어, 파스텔톤 배경, 고화질 제품 클로즈업 컷")
+        
+    if st.button("✨ 광고 이미지 생성하기", type="primary"):
+        if not ad_copy or not ad_concept:
+            st.warning("⚠️ 광고 문구와 비주얼 콘셉트를 모두 입력해주세요!")
+        else:
+            with st.spinner("🤖 AI가 맞춤형 광고 크리에이티브 디자인을 생성하고 있습니다..."):
+                # (추후 실제 OpenAI DALL-E 3 API 연동 코드 자리)
+                # 시뮬레이션용 성공 메시지 및 예시 이미지 출력
+                st.success("🎉 광고 소재 시안 생성이 완료되었습니다!")
+                
+                # 결과 미리보기 영역
+                res_col1, res_col2 = st.columns([1, 2])
+                with res_col1:
+                    st.info(f"**적용된 설정**\n- 브랜드: {current_advertiser_name}\n- 사이즈: {ad_size}\n- 문구: {ad_copy}")
+                with res_col2:
+                    # 임시 배너 이미지 출력 (실제 연동 시 생성된 이미지 출력)
+                    st.image("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop", caption=f"생성된 광고 시안: {ad_copy}")
+
+st.markdown("---")
+
+# [6단] AI 퍼포먼스 마케터 인사이트 및 제안 섹션
 st.subheader(f"🤖 AI 퍼포먼스 마케팅 인사이트 & 액션 제안 ({current_advertiser_name} - {selected_month})")
 
 with st.container():
@@ -170,5 +205,5 @@ with st.container():
     with tab3:
         st.markdown("""
         - **소재 리프레시**: 
-          - CTR이 2.5% 이하로 떨어진 피로도 누적 소재는 중단하고, 고효율 소재인 `영상_유튜브쇼츠형_퍼포먼스_v2.mp4` 계열의 후속 베리언트를 제작하세요.
+          - CTR이 2.5% 이하로 떨어진 피로도 누적 소재는 중단하고, 위 **AI 소재 스튜디오**를 통해 새로운 베리언트 시안을 빠르게 제작하세요.
         """)
