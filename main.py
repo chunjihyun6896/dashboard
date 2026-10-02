@@ -1,4 +1,3 @@
-import base64
 import pandas as pd
 import streamlit as st
 
@@ -31,7 +30,7 @@ st.markdown(
         aspect-ratio: 1 / 1 !important;
         object-fit: contain !important;
         border-radius: 6px;
-        background-color: #ffffff; /* 로고 배경이 투명할 경우 깔끔하게 보이도록 흰색 지정 (선택사항) */
+        background-color: #ffffff; /* 로고 배경이 투명할 경우 깔끔하게 보이도록 흰색 지정 */
         padding: 4px;
     }
     /* 사이드바 내 라디오 버튼 스타일을 작은 버튼 형태처럼 보이게 커스텀 */
@@ -62,26 +61,12 @@ if "selected_channel" not in st.session_state:
   st.session_state.selected_channel = "카카오"
 
 # ==========================================
-# 3. 좌측 미니 사이드바 구성 (첨부된 로고 Base64 임베딩 + 채널 선택 버튼들)
+# 3. 좌측 미니 사이드바 구성 (제공해주신 이미지 링크 적용 + 채널 선택 버튼들)
 # ==========================================
-# 첨부해주신 로고 이미지 바이너리 기반 Base64 인코딩 데이터
-logo_base64 = (
-    "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="  # (예시 데이터 생략 방지를 위해 실제 아래 완전한 인코딩 적용)
-)
-
-# 실제 전체 Base64 인코딩 이미지 문자열 삽입
-logo_data_url = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="  # 코드가 길어지므로 아래 전체 인코딩 반영된 문자열 사용
 with st.sidebar:
-  # 1) 첨부된 로고 이미지 파일 인라인 Base64 렌더링 (1:1 비율 및 사이드바 규격 맞춤)
-  # 파일 업로드 없이 코드로 완벽히 작동하도록 내장된 Base64 적용
-  with open("KakaoTalk_20261002_100449413_01.jpg", "rb") as image_file:
-    encoded_string = base64.b64encode(image_file.read()).decode()
-  st.markdown(
-      f'<img src="data:image/jpeg;base64,{encoded_string}"'
-      ' style="width:100%; aspect-ratio:1/1; object-fit:contain; border-radius:6px;'
-      ' background:#ffffff; padding:4px; margin-bottom:5px;">',
-      unsafe_allow_html=True,
-  )
+  # 1) 자사 로고 이미지 배치 (요청하신 새로운 링크 적용)
+  logo_url = "https://postfiles.pstatic.net/MjAyNjEwMDJfMTk3/MDAxNzkwOTI2NjI1NDQ3.onXBC4S3HbypXqgaIBTI9nkbxszhk00IW9KGCVlcXmEg.bpswq-tDbouId6KoFEK7PUFcMZCE8VkQ3_oKcqkIDc8g.JPEG/KakaoTalk_20261002_100449413_01.jpg?type=w966"
+  st.image(logo_url, use_container_width=True)
 
   st.markdown(
       "<hr style='margin: 10px 0; border-color: #334155;'>",
