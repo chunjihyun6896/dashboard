@@ -78,7 +78,7 @@ def fetch_naver_adgroups(customer_id):
 
 
 # ==========================================
-# 3. 카카오모먼트 실제 API 연동 함수 (그룹 및 성과 통합)
+# 3. 카카오모먼트 실제 API 연동 함수 (리만 계정 반영)
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_kakao_realtime_data(ad_account_id):
@@ -89,11 +89,8 @@ def fetch_kakao_realtime_data(ad_account_id):
   }
   rows = []
   total_spent = 0
-  total_sales = 0
-  total_roas_sum = 0
 
   try:
-    # 1. 광고 그룹 기본 정보 조회
     url_groups = f"https://apis.moment.kakao.com/openapi/v4/adGroups?adAccountId={ad_account_id}"
     res_groups = requests.get(url_groups, headers=headers, timeout=5)
 
@@ -107,7 +104,6 @@ def fetch_kakao_realtime_data(ad_account_id):
             "노출중" if raw_status in ["ENABLE", "RUNNING"] else "중지/대기"
         )
 
-        # 기본값 설정 (API 응답 필드 상이할 경우 대비)
         spent = float(g.get("spentCost", 0))
         imp = int(g.get("impression", 0))
         click = int(g.get("click", 0))
@@ -137,12 +133,12 @@ def fetch_kakao_realtime_data(ad_account_id):
           "roas": "안정적",
           "goal": "100.0%",
       }
-      return df, summary_metrics, len(rows) > 0
+      return df, summary_metrics, True
 
     else:
       st.warning(
-          f"카카오모먼트 API 호출 실패 (코드: {res_groups.status_code}). 토큰 및"
-          " 계정 ID를 확인해주세요."
+          f"카카오모먼트 API 호출 실패 (코드: {res_groups.status_code}). 토큰 권한"
+          f" 또는 리만({ad_account_id}) 계정 ID를 확인해주세요."
       )
   except Exception as e:
     st.error(f"카카오모먼트 통신 중 오류 발생: {e}")
@@ -162,9 +158,9 @@ def generate_ai_diagnosis(channel, advertiser, df_groups):
     return {
         "status_msg": (
             f"현재 **[{channel}]** 채널의 **{advertiser}** 계정에 연동된"
-            " 활성 캠페인 그룹이 없습니다."
+            " 활성 캠페인 그룹이 없거나 접근 권한을 확인해야 합니다."
         ),
-        "urgent": "- **확인 필요**: API 토큰 권한 및 광고 계정 상태를 점검하세요.",
+        "urgent": "- **확인 필요**: API 토큰의 권한 범위 및 광고 계정 상태를 점검하세요.",
         "budget": "- **예산 점검**: 집행 중인 캠페인 데이터가 수신되지 않았습니다.",
         "creative": (
             "- **소재 등록**: 카카오모먼트 센터에서 라이브 캠페인 상태를"
@@ -175,7 +171,7 @@ def generate_ai_diagnosis(channel, advertiser, df_groups):
   return {
       "status_msg": (
           f"현재 **[{channel}]** 채널에서 **{advertiser}**의 광고 데이터가"
-          " 정상적으로 연동되어 실시간 수신되고 있습니다."
+          " 정상적으로 연동되어 수신되고 있습니다."
       ),
       "urgent": (
           "- **효율 모니터링**: 실시간 수신되는 CTR 및 전환 지표 변동 추이를"
@@ -299,7 +295,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 7. 상단 타이틀 및 광고주 선택 리스트
+# 7. 상단 타이틀 및 광고주 선택 리스트 (리만 계정 추가)
 # ==========================================
 header_col1, header_col2 = st.columns([2, 1])
 
@@ -310,6 +306,7 @@ advertisers_map = {
         "1001864": "금하 (1001864)",
     },
     "카카오": {
+        "995724": "리만 (995724)",
         "558725": "asap-ad (558725)",
         "987505": "GHB (987505)",
     },
