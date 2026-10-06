@@ -32,7 +32,7 @@ channel_name = st.session_state.selected_channel
 # 2. API 인증 정보 설정 (카카오 & 네이버)
 # ==========================================
 # [카카오모먼트 비즈니스 토큰 적용]
-KAKAO_BUSINESS_TOKEN = "6VIMZlJwTHFHJIQNMsd2cbXEUGb1svcsAAAAAwoXNVcAAAGhD2FPVVv0-avl6D9k"
+KAKAO_BUSINESS_TOKEN = "3V4ZN5g7rPb_6q6WZa9Eaei1nT89q1iMAAAAAwoXACcAAAGhD46igFv0-avl6D9k"
 
 # [네이버 검색광고 API 설정]
 NAVER_ACCESS_LICENSE = (
