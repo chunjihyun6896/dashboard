@@ -708,85 +708,106 @@ def make_full_date_dataframe(
     adgroup_meta,
 ):
     """
-    광고가 실제로 집행된 날짜만 API에서 내려오더라도
-    선택한 월의 날짜를 모두 만들어준다.
-
-    광고가 없는 날 = 0
+    선택한 월의 날짜를 모두 생성하고
+    API 데이터가 없는 날짜는 0으로 채운다.
     """
+
+    # -----------------------------------------
+    # 1. 조회 대상 날짜 전체 생성
+    # -----------------------------------------
 
     dates = get_month_dates(year, month)
 
-    full_dates = pd.DataFrame(
-        {
-            "date": [
-                d.strftime("%Y-%m-%d")
-                for d in dates
-            ]
-        }
-    )
+    full_dates = pd.DataFrame({
+        "date": [
+            d.strftime("%Y-%m-%d")
+            for d in dates
+        ]
+    })
 
     # -----------------------------------------
-    # BASIC
+    # 2. BASIC 데이터 정리
     # -----------------------------------------
 
-    if basic_df.empty:
-        basic_daily = pd.DataFrame(
-            columns=[
-                "date",
-                "cost",
-                "imp",
-                "click",
-            ]
-        )
+    if basic_df is None or basic_df.empty:
+
+        basic_daily = pd.DataFrame({
+            "date": [],
+            "cost": [],
+            "imp": [],
+            "click": [],
+        })
+
     else:
+
+        basic_df = basic_df.copy()
 
         basic_df["date"] = pd.to_datetime(
             basic_df["date"],
-            errors="coerce",
+            errors="coerce"
         ).dt.strftime("%Y-%m-%d")
+
+        # 숫자형 강제 변환
+        basic_df["cost"] = pd.to_numeric(
+            basic_df["cost"],
+            errors="coerce"
+        ).fillna(0.0)
+
+        basic_df["imp"] = pd.to_numeric(
+            basic_df["imp"],
+            errors="coerce"
+        ).fillna(0)
+
+        basic_df["click"] = pd.to_numeric(
+            basic_df["click"],
+            errors="coerce"
+        ).fillna(0)
 
         basic_daily = (
             basic_df
             .groupby("date", as_index=False)
-            .agg(
-                {
-                    "cost": "sum",
-                    "imp": "sum",
-                    "click": "sum",
-                }
-            )
+            .agg({
+                "cost": "sum",
+                "imp": "sum",
+                "click": "sum",
+            })
         )
 
     # -----------------------------------------
-    # 전환
+    # 3. 전환 데이터 정리
     # -----------------------------------------
 
-    if conversion_df.empty:
-        conversion_daily = pd.DataFrame(
-            columns=[
-                "date",
-                "service_signup_7d",
-            ]
-        )
+    if conversion_df is None or conversion_df.empty:
+
+        conversion_daily = pd.DataFrame({
+            "date": [],
+            "service_signup_7d": [],
+        })
+
     else:
+
+        conversion_df = conversion_df.copy()
 
         conversion_df["date"] = pd.to_datetime(
             conversion_df["date"],
-            errors="coerce",
+            errors="coerce"
         ).dt.strftime("%Y-%m-%d")
+
+        conversion_df["service_signup_7d"] = pd.to_numeric(
+            conversion_df["service_signup_7d"],
+            errors="coerce"
+        ).fillna(0)
 
         conversion_daily = (
             conversion_df
             .groupby("date", as_index=False)
-            .agg(
-                {
-                    "service_signup_7d": "sum",
-                }
-            )
+            .agg({
+                "service_signup_7d": "sum",
+            })
         )
 
     # -----------------------------------------
-    # 날짜 병합
+    # 4. 전체 날짜 + BASIC 데이터
     # -----------------------------------------
 
     result = full_dates.merge(
@@ -795,6 +816,10 @@ def make_full_date_dataframe(
         how="left",
     )
 
+    # -----------------------------------------
+    # 5. 전환 데이터 병합
+    # -----------------------------------------
+
     result = result.merge(
         conversion_daily,
         on="date",
@@ -802,7 +827,7 @@ def make_full_date_dataframe(
     )
 
     # -----------------------------------------
-    # 빈 날짜 = 0
+    # 6. 숫자형 강제 변환
     # -----------------------------------------
 
     for col in [
@@ -811,27 +836,70 @@ def make_full_date_dataframe(
         "click",
         "service_signup_7d",
     ]:
-        if col in result.columns:
-            result[col] = result[col].fillna(0)
+
+        if col not in result.columns:
+            result[col] = 0.0
+
+        result[col] = pd.to_numeric(
+            result[col],
+            errors="coerce"
+        ).fillna(0.0)
+
+    # -----------------------------------------
+    # 7. CTR 계산
+    # -----------------------------------------
 
     result["ctr"] = 0.0
 
-    mask = result["imp"] > 0
+    imp_values = result["imp"].to_numpy(dtype=float)
+    click_values = result["click"].to_numpy(dtype=float)
 
-    result.loc[mask, "ctr"] = (
-        result.loc[mask, "click"]
-        / result.loc[mask, "imp"]
-        * 100
-    )
+    ctr_values = []
+
+    for imp, click in zip(
+        imp_values,
+        click_values
+    ):
+
+        if imp > 0:
+            ctr = (
+                click
+                / imp
+                * 100
+            )
+        else:
+            ctr = 0.0
+
+        ctr_values.append(ctr)
+
+    result["ctr"] = ctr_values
+
+    # -----------------------------------------
+    # 8. CPA 계산
+    # -----------------------------------------
 
     result["cpa"] = 0.0
 
-    mask_conversion = result["service_signup_7d"] > 0
+    cost_values = result["cost"].to_numpy(dtype=float)
+    signup_values = result[
+        "service_signup_7d"
+    ].to_numpy(dtype=float)
 
-    result.loc[mask_conversion, "cpa"] = (
-        result.loc[mask_conversion, "cost"]
-        / result.loc[mask_conversion, "service_signup_7d"]
-    )
+    cpa_values = []
+
+    for cost, signup in zip(
+        cost_values,
+        signup_values
+    ):
+
+        if signup > 0:
+            cpa = cost / signup
+        else:
+            cpa = 0.0
+
+        cpa_values.append(cpa)
+
+    result["cpa"] = cpa_values
 
     return result
 
