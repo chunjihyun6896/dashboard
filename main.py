@@ -23,6 +23,7 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
+# 세션 초기화 및 상태 관리
 if "selected_channel" not in st.session_state:
   st.session_state.selected_channel = "카카오"
 
@@ -73,108 +74,98 @@ def fetch_naver_adgroups(customer_id):
       return response.json()
   except Exception:
     pass
-  return None
+  return []
 
 
 # ==========================================
-# 3. 브랜드별 고정 성과 데이터 연동 함수
+# 3. 카카오모먼트 실제 API 연동 함수
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_kakao_realtime_data(ad_account_id):
+  """카카오모먼트 OpenAPI를 호출하여 실제 광고 그룹 및 성과 데이터를 가져옵니다."""
   headers = {
       "Authorization": f"Bearer {KAKAO_BUSINESS_TOKEN}",
       "Content-Type": "application/json",
   }
   try:
     url_groups = f"https://apis.moment.kakao.com/openapi/v4/adGroups?adAccountId={ad_account_id}"
-    requests.get(url_groups, headers=headers, timeout=3)
-  except Exception:
-    pass
+    response = requests.get(url_groups, headers=headers, timeout=5)
 
-  brand_profiles = {
-      "558725": [  # asap-ad
-          {
-              "그룹명": "asap-ad 메인 디스플레이 캠페인",
-              "상태": "노출중",
-              "총비용": "154,200원",
-              "노출": "45,210",
-              "클릭수": "1,280",
-              "CTR": "2.83%",
-              "전환수": "34건",
-              "ROAS": "385.5%",
-          },
-          {
-              "그룹명": "asap-ad 리타겟팅 광고그룹",
-              "상태": "노출중",
-              "총비용": "86,500원",
-              "노출": "21,400",
-              "클릭수": "690",
-              "CTR": "3.22%",
-              "전환수": "18건",
-              "ROAS": "410.2%",
-          },
-      ],
-      "987505": [  # GHB
-          {
-              "그룹명": "GHB 브랜드 전환 리타겟팅",
-              "상태": "노출중",
-              "총비용": "428,900원",
-              "노출": "112,500",
-              "클릭수": "3,410",
-              "CTR": "3.03%",
-              "전환수": "89건",
-              "ROAS": "442.1%",
-          },
-          {
-              "그룹명": "GHB 신제품 런칭 타겟팅",
-              "상태": "노출중",
-              "총비용": "215,000원",
-              "노출": "78,000",
-              "클릭수": "1,950",
-              "CTR": "2.50%",
-              "전환수": "42건",
-              "ROAS": "360.8%",
-          },
-      ],
-  }
+    if response.status_code == 200:
+      data = response.json()
+      groups_list = data.get("content", [])
 
-  selected_rows = brand_profiles.get(
-      str(ad_account_id),
-      [{
-          "그룹명": f"일반 캠페인 그룹 ({ad_account_id})",
-          "상태": "노출중",
-          "총비용": "100,000원",
-          "노출": "30,000",
-          "클릭수": "800",
-          "CTR": "2.67%",
-          "전환수": "20건",
-          "ROAS": "350.0%",
-      }],
-  )
+      if groups_list:
+        rows = []
+        for g in groups_list:
+          g_name = g.get("name", "캠페인 그룹")
+          raw_status = g.get("status", "")
+          status_display = (
+              "노출중" if raw_status in ["ENABLE", "RUNNING"] else "중지/대기"
+          )
 
-  return pd.DataFrame(selected_rows), True
+          # API 응답에 포함된 실제 지표 필드 파싱 (없을 경우 0 처리)
+          spent = g.get("spentCost", g.get("spent_cost", 0))
+          imp = g.get("impression", 0)
+          click = g.get("click", 0)
+          conv = g.get("conversion", 0)
+          roas = g.get("roas", 0.0)
+
+          ctr = (click / imp * 100) if imp > 0 else 0.0
+
+          rows.append({
+              "그룹명": g_name,
+              "상태": status_display,
+              "총비용": f"{int(spent):,}원",
+              "노출": f"{int(imp):,}",
+              "클릭수": f"{int(click):,}",
+              "CTR": f"{ctr:.2f}%",
+              "전환수": f"{int(conv)}건",
+              "ROAS": f"{roas:.1f}%",
+          })
+        return pd.DataFrame(rows), True
+    else:
+      st.warning(
+          f"카카오모먼트 API 응답 코드: {response.status_code} (권한 또는"
+          " 계정 ID를 확인해주세요)"
+      )
+  except Exception as e:
+    st.error(f"카카오모먼트 API 통신 오류: {e}")
+
+  return pd.DataFrame(), False
 
 
 # ==========================================
 # 4. AI 진단 로직 함수
 # ==========================================
 def generate_ai_diagnosis(channel, advertiser, df_groups):
+  if df_groups.empty:
+    return {
+        "status_msg": (
+            f"현재 **[{channel}]** 채널의 **{advertiser}** 계정에 연동된"
+            " 데이터가 없거나 집행 중인 캠페인이 없습니다."
+        ),
+        "urgent": "- **확인 필요**: API 토큰 권한 및 광고 계정 상태를 점검하세요.",
+        "budget": "- **예산 점검**: 활성화된 캠페인 그룹이 확인되지 않습니다.",
+        "creative": "- **소재 등록**: 카카오모먼트 센터에서 라이브 캠페인을 확인하세요.",
+    }
+
   return {
       "status_msg": (
           f"현재 **[{channel}]** 채널에서 **{advertiser}**의 광고가"
-          " 정상적으로 집행 중이며 안정적인 성과를 기록하고 있습니다."
+          " 정상적으로 연동되어 데이터를 수신하고 있습니다."
       ),
       "urgent": (
-          "- **효율 모니터링**: 타겟팅 오디언스의 피로도와 CTR 변동 추이를"
-          " 주간 단위로 점검하세요."
+          "- **효율 모니터링**: 실시간 수신되는 CTR 및 전환 단가를 지속적으로"
+          " 체크하세요."
       ),
       "budget": (
-          "- **예산 최적화**: 고효율 캠페인 그룹을 중심으로 예산을 10~15%"
-          " 증액하는 것을 검토하세요."
+          "- **예산 최적화**: 성과가 우수한 그룹을 중심으로 예산 재배분을"
+          " 검토하세요."
       ),
       "creative": (
-          "- **소재 관리**: 고성과 배너 소재의 카피디자인 베리에이션을 추가로"
-          " 테스트해 보세요."
+          "- **소재 관리**: 피로도가 누적된 소재는 신규 배너로 교체 테스트를"
+          " 진행하세요."
       ),
   }
 
@@ -282,6 +273,7 @@ with st.sidebar:
     if st.button(ch, key=f"btn_{ch}", use_container_width=True):
       if st.session_state.selected_channel != ch:
         st.session_state.selected_channel = ch
+        st.cache_data.clear()
         st.rerun()
 
 # ==========================================
@@ -307,57 +299,57 @@ advertisers_map = {
     },
 }
 
-current_advertisers = advertisers_map.get(
-    channel_name, {"2274356": "asap-ad (2274356)"}
-)
+current_advertisers = advertisers_map.get(channel_name, {})
+if not current_advertisers:
+  current_advertisers = {"default": "등록된 광고주 없음"}
+
+advertiser_ids = list(current_advertisers.keys())
 
 with header_col2:
   selected_id = st.selectbox(
       "📌 광고주 선택",
-      options=list(current_advertisers.keys()),
+      options=advertiser_ids,
       format_func=lambda x: current_advertisers[x],
+      key="advertiser_selectbox",
   )
 
-current_advertiser_name = current_advertisers[selected_id]
+current_advertiser_name = current_advertisers.get(selected_id, "알 수 없는 광고주")
 
 with header_col1:
   st.title(f"📊 [{channel_name}] {current_advertiser_name} 성과 대시보드")
   st.markdown(
-      f"선택하신 **{channel_name}** 채널의 실시간 광고 집행 성과를"
-      " 모니터링합니다."
+      f"선택하신 **{channel_name}** 채널의 실시간 API 데이터를 조회합니다."
   )
 
 st.markdown("---")
 
 # ==========================================
-# 8. 핵심 지표 요약 (브랜드별 고정 매핑)
+# 8. 핵심 지표 요약
 # ==========================================
-metrics_map = {
-    "558725": ("240,700원", "928,000원", "395.2%", "94.0%"),
-    "987505": ("643,900원", "2,765,000원", "429.4%", "102.5%"),
-}
-c1, c2, c3, c4 = metrics_map.get(
-    str(selected_id), ("150,000원", "500,000원", "333.3%", "88.0%")
-)
-
 col1, col2, col3, col4 = st.columns(4)
 with col1:
   st.metric(
-      label=f"[{channel_name}] 총 광고비", value=c1, delta="실시간 반영 중"
+      label=f"[{channel_name}] 총 광고비",
+      value="API 연동 대기",
+      delta="실시간 수신",
   )
 with col2:
   st.metric(
-      label=f"[{channel_name}] 총 매출액", value=c2, delta="실시간 반영 중"
+      label=f"[{channel_name}] 총 매출액",
+      value="API 연동 대기",
+      delta="실시간 수신",
   )
 with col3:
   st.metric(
-      label=f"[{channel_name}] 평균 ROAS", value=c3, delta="실시간 반영 중"
+      label=f"[{channel_name}] 평균 ROAS",
+      value="API 연동 대기",
+      delta="실시간 수신",
   )
 with col4:
   st.metric(
       label="목표 달성률",
-      value=c4,
-      delta="실시간 반영 중",
+      value="API 연동 대기",
+      delta="실시간 수신",
       delta_color="normal",
   )
 
@@ -388,111 +380,14 @@ with section_col2:
           "12월",
       ],
       index=9,
+      key="month_select",
   )
 
-
-def get_fixed_daily_report(ad_id):
-  """광고주별로 완전히 고정된 5일간의 상세 성과 리포트를 반환합니다 (값이 흔들리지 않음)."""
-  if str(ad_id) == "987505":
-    return pd.DataFrame([
-        {
-            "일자": "2026-10-01",
-            "총비용": "125,000원",
-            "노출": "32,400",
-            "클릭수": "980",
-            "CTR": "3.02%",
-            "전환수": "22건",
-            "ROAS": "430.0%",
-        },
-        {
-            "일자": "2026-10-02",
-            "총비용": "134,000원",
-            "노출": "35,100",
-            "클릭수": "1,050",
-            "CTR": "2.99%",
-            "전환수": "25건",
-            "ROAS": "440.0%",
-        },
-        {
-            "일자": "2026-10-03",
-            "총비용": "118,000원",
-            "노출": "30,800",
-            "클릭수": "920",
-            "CTR": "2.98%",
-            "전환수": "20건",
-            "ROAS": "425.0%",
-        },
-        {
-            "일자": "2026-10-04",
-            "총비용": "142,000원",
-            "노출": "37,500",
-            "클릭수": "1,140",
-            "CTR": "3.04%",
-            "전환수": "28건",
-            "ROAS": "450.0%",
-        },
-        {
-            "일자": "2026-10-05",
-            "총비용": "124,900원",
-            "노출": "32,700",
-            "클릭수": "980",
-            "CTR": "2.99%",
-            "전환수": "24건",
-            "ROAS": "438.0%",
-        },
-    ])
-  else:
-    return pd.DataFrame([
-        {
-            "일자": "2026-10-01",
-            "총비용": "45,200원",
-            "노출": "12,400",
-            "클릭수": "350",
-            "CTR": "2.82%",
-            "전환수": "9건",
-            "ROAS": "380.0%",
-        },
-        {
-            "일자": "2026-10-02",
-            "총비용": "48,000원",
-            "노출": "13,100",
-            "클릭수": "370",
-            "CTR": "2.82%",
-            "전환수": "10건",
-            "ROAS": "385.0%",
-        },
-        {
-            "일자": "2026-10-03",
-            "총비용": "42,000원",
-            "노출": "11,500",
-            "클릭수": "320",
-            "CTR": "2.78%",
-            "전환수": "8건",
-            "ROAS": "375.0%",
-        },
-        {
-            "일자": "2026-10-04",
-            "총비용": "52,500원",
-            "노출": "14,300",
-            "클릭수": "410",
-            "CTR": "2.86%",
-            "전환수": "12건",
-            "ROAS": "392.0%",
-        },
-        {
-            "일자": "2026-10-05",
-            "총비용": "53,000원",
-            "노출": "14,500",
-            "클릭수": "415",
-            "CTR": "2.86%",
-            "전환수": "12건",
-            "ROAS": "390.0%",
-        },
-    ])
-
-
-df_daily = get_fixed_daily_report(selected_id)
-st.dataframe(df_daily, hide_index=True, use_container_width=True, height=300)
+# 일자별 리포트 영역 (실제 API 혹은 빈 데이터 프레임 구조)
+df_daily = pd.DataFrame(
+    columns=["일자", "총비용", "노출", "클릭수", "CTR", "전환수", "ROAS"]
+)
+st.dataframe(df_daily, hide_index=True, use_container_width=True, height=200)
 
 st.markdown("---")
 
@@ -517,18 +412,18 @@ if channel_name == "네이버":
       rows.append({
           "그룹명": group.get("name"),
           "상태": status_display,
-          "총비용": "120,000원",
-          "노출": "35,000",
-          "클릭수": "950",
-          "CTR": "2.71%",
-          "전환수": "25건",
-          "ROAS": "350.0%",
+          "총비용": "0원",
+          "노출": "0",
+          "클릭수": "0",
+          "CTR": "0.00%",
+          "전환수": "0건",
+          "ROAS": "0.0%",
       })
     df_groups = pd.DataFrame(rows)
 
 elif channel_name == "카카오":
   with st.spinner(
-      f"카카오모먼트 성과 데이터 연동 중 ({current_advertiser_name})..."
+      f"카카오모먼트 API 실시간 데이터 호출 중 ({current_advertiser_name})..."
   ):
     df_kakao, success = fetch_kakao_realtime_data(selected_id)
     if success and not df_kakao.empty:
@@ -536,6 +431,11 @@ elif channel_name == "카카오":
 
 if not df_groups.empty:
   st.dataframe(df_groups, hide_index=True, use_container_width=True)
+else:
+  st.warning(
+      f"[{channel_name}] 채널의 [{current_advertiser_name}] 계정에서 가져올 수"
+      " 있는 캠페인 그룹 데이터가 없거나 API 응답이 비어 있습니다."
+  )
 
 st.markdown("---")
 
