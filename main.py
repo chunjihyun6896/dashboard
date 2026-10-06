@@ -32,7 +32,6 @@ channel_name = st.session_state.selected_channel
 # ==========================================
 # 2. API 인증 정보 설정 (카카오 & 네이버)
 # ==========================================
-# 새로 발급받은 유효한 카카오 액세스 토큰 반영 완료
 KAKAO_BUSINESS_TOKEN = (
     "nK-BQVCgfJfwwegxAfG460aTIAsMsassuugZM2CSaQWdDPwkKnWLHAAAAAQKDQ1fAAABoQ-4r-iBPKUF0hG4dQ"
 )
@@ -81,14 +80,16 @@ def fetch_naver_adgroups(customer_id):
 
 
 # ==========================================
-# 3. 카카오모먼트 실제 API 연동 함수 (리만 계정 반영)
+# 3. 카카오모먼트 실제 API 연동 함수 (인증 헤더 보완)
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_kakao_realtime_data(ad_account_id):
-  """카카오모먼트 API를 통해 광고 그룹 정보와 성과 데이터를 안전하게 가져옵니다."""
+  """카카오모먼트 API 규격에 맞춘 헤더와 파라미터로 데이터를 안전하게 호출합니다."""
   headers = {
       "Authorization": f"Bearer {KAKAO_BUSINESS_TOKEN}",
       "Content-Type": "application/json",
+      # 카카오모먼트 API 전용 계정 식별 헤더 추가
+      "ad-account-id": str(ad_account_id),
   }
   rows = []
   total_spent = 0
@@ -140,8 +141,8 @@ def fetch_kakao_realtime_data(ad_account_id):
 
     else:
       st.warning(
-          f"카카오모먼트 API 호출 실패 (코드: {res_groups.status_code}). 토큰 권한"
-          f" 또는 리만({ad_account_id}) 계정 ID를 확인해주세요."
+          f"카카오모먼트 API 호출 실패 (코드: {res_groups.status_code}). 토큰"
+          f" 권한 또는 리만({ad_account_id}) 계정 ID를 확인해주세요."
       )
   except Exception as e:
     st.error(f"카카오모먼트 통신 중 오류 발생: {e}")
