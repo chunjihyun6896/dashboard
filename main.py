@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+from datetime import datetime
 import time
 import pandas as pd
 import requests
@@ -85,7 +86,6 @@ def fetch_naver_adgroups(customer_id):
 def fetch_kakao_realtime_data(ad_account_id):
   """카카오모먼트 API를 통해 전달받은 비즈니스 토큰으로 실시간 데이터를 조회합니다."""
   try:
-    # 카카오모먼트 공식 오픈API 엔드포인트 규격 (광고 그룹 및 성과 조회)
     url = f"https://apis.moment.kakao.com/openapi/v4/adGroups?adAccountId={ad_account_id}"
     headers = {
         "Authorization": f"Bearer {KAKAO_BUSINESS_TOKEN}",
@@ -115,7 +115,6 @@ def fetch_kakao_realtime_data(ad_account_id):
           })
         return pd.DataFrame(rows), True
 
-    # 연결된 계정에 집행 데이터가 없거나 토큰 권한 범위 내 계정이 아닐 경우 안내용 샘플 표시
     sample_df = pd.DataFrame([{
         "그룹명": f"카카오 라이브 그룹 (계정: {ad_account_id})",
         "상태": "노출중 (실시간)",
@@ -393,14 +392,24 @@ with section_col2:
 
 def get_mock_daily_data(month_str):
   month_num = int(month_str.replace("월", ""))
+  current_year = datetime.now().year
+  current_date = datetime.now().date()
+
   last_day = (
       28 if month_num == 2 else (30 if month_num in [4, 6, 9, 11] else 31)
   )
-  dates = [f"2026-{month_num:02d}-{day:02d}" for day in range(1, last_day + 1)]
+  dates = [
+      datetime(current_year, month_num, day).date() for day in range(1, last_day + 1)
+  ]
+
   data = []
   for i, d in enumerate(dates):
+    # 오늘 날짜보다 미래인 경우 리포트에서 제외
+    if d > current_date:
+      break
+
     data.append({
-        "일자": d,
+        "일자": d.strftime("%Y-%m-%d"),
         "총비용": f"{(i + 1) * 5140:,}원",
         "노출": f"{(i + 1) * 1500:,}",
         "클릭수": f"{(i + 1) * 42:,}",
