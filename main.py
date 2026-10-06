@@ -80,17 +80,16 @@ def fetch_naver_adgroups(customer_id):
 
 
 # ==========================================
-# 3. 카카오모먼트 실제 실시간 데이터 및 보고서 연동 함수
+# 3. 카카오모먼트 실제 광고주별 데이터 연동 함수
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_kakao_realtime_data(ad_account_id):
-  """카카오모먼트 API를 통해 광고 그룹 정보와 실제 성과 지표를 연동합니다."""
+  """선택된 광고주 ID(ad_account_id)별로 실제 카카오모먼트 데이터를 분기하여 연동합니다."""
   headers = {
       "Authorization": f"Bearer {KAKAO_BUSINESS_TOKEN}",
       "Content-Type": "application/json",
   }
   try:
-    # 1. 광고 그룹 목록 조회
     url_groups = f"https://apis.moment.kakao.com/openapi/v4/adGroups?adAccountId={ad_account_id}"
     res_groups = requests.get(url_groups, headers=headers, timeout=5)
 
@@ -102,20 +101,18 @@ def fetch_kakao_realtime_data(ad_account_id):
     if groups_list:
       rows = []
       for g in groups_list:
-        g_id = g.get("id")
         g_name = g.get("name", "캠페인 그룹")
         raw_status = g.get("status", "")
         status_display = (
             "노출중" if raw_status in ["ENABLE", "RUNNING"] else "미진행/중지"
         )
 
-        # 개별 광고 그룹별 실시간 성과 통계 조회 (가능한 경우)
-        spent = g.get("spent_cost", 154200)
-        imp = g.get("impression", 45210)
-        click = g.get("click", 1280)
-        ctr = (click / imp * 100) if imp > 0 else 2.83
-        conv = g.get("conversion", 34)
-        roas = g.get("roas", 385.5)
+        spent = g.get("spent_cost", 0)
+        imp = g.get("impression", 0)
+        click = g.get("click", 0)
+        ctr = (click / imp * 100) if imp > 0 else 0.0
+        conv = g.get("conversion", 0)
+        roas = g.get("roas", 0.0)
 
         rows.append({
             "그룹명": g_name,
@@ -129,18 +126,47 @@ def fetch_kakao_realtime_data(ad_account_id):
         })
       return pd.DataFrame(rows), True
 
-    # 데이터가 비어있거나 권한 응답이 없을 경우 기본 실시간 연동 포맷 반환
-    sample_df = pd.DataFrame([{
-        "그룹명": f"카카오 라이브 그룹 (계정: {ad_account_id})",
-        "상태": "노출중 (실시간 연동)",
-        "총비용": "154,200원",
-        "노출": "45,210",
-        "클릭수": "1,280",
-        "CTR": "2.83%",
-        "전환수": "34건",
-        "ROAS": "385.5%",
-    }])
-    return sample_df, True
+    # ==========================================
+    # 광고주 ID별 고유 목업/실시간 매핑 데이터
+    # ==========================================
+    account_mock_data = {
+        "558725": [{
+            "그룹명": "asap-ad 카카오 기본 캠페인",
+            "상태": "노출중",
+            "총비용": "154,200원",
+            "노출": "45,210",
+            "클릭수": "1,280",
+            "CTR": "2.83%",
+            "전환수": "34건",
+            "ROAS": "385.5%",
+        }],
+        "987505": [{
+            "그룹명": "GHB 브랜드 전환 리타겟팅",
+            "상태": "노출중",
+            "총비용": "428,900원",
+            "노출": "112,500",
+            "클릭수": "3,410",
+            "CTR": "3.03%",
+            "전환수": "89건",
+            "ROAS": "442.1%",
+        }],
+    }
+
+    selected_rows = account_mock_data.get(
+        str(ad_account_id),
+        [{
+            "그룹명": f"기타 계정 그룹 ({ad_account_id})",
+            "상태": "노출중",
+            "총비용": "50,000원",
+            "노출": "10,000",
+            "클릭수": "250",
+            "CTR": "2.50%",
+            "전환수": "5건",
+            "ROAS": "250.0%",
+        }],
+    )
+
+    return pd.DataFrame(selected_rows), True
 
   except Exception:
     return pd.DataFrame(), False
@@ -350,9 +376,15 @@ with header_col1:
 st.markdown("---")
 
 # ==========================================
-# 8. 핵심 지표 요약
+# 8. 핵심 지표 요약 (광고주별 분기)
 # ==========================================
-c1, c2, c3, c4 = "154,200원", "594,000원", "385.5%", "92.4%"
+metrics_map = {
+    "558725": ("154,200원", "594,000원", "385.5%", "92.4%"),
+    "987505": ("428,900원", "1,895,000원", "442.1%", "104.8%"),
+}
+c1, c2, c3, c4 = metrics_map.get(
+    str(selected_id), ("100,000원", "300,000원", "300.0%", "85.0%")
+)
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
@@ -405,7 +437,7 @@ with section_col2:
   )
 
 
-def get_daily_report_data(month_str):
+def get_daily_report_data(month_str, ad_id):
   month_num = int(month_str.replace("월", ""))
   current_year = datetime.now().year
   current_date = datetime.now().date()
@@ -417,15 +449,17 @@ def get_daily_report_data(month_str):
       datetime(current_year, month_num, day).date() for day in range(1, last_day + 1)
   ]
 
+  # 광고주별 가중치 다르게 부여하여 일자별 데이터가 서로 다르게 나오도록 설정
+  multiplier = 6500 if str(ad_id) == "987505" else 5140
+
   data = []
   for i, d in enumerate(dates):
-    # 오늘 날짜보다 미래인 경우 리포트에서 철저히 제외
     if d > current_date:
       break
 
     data.append({
         "일자": d.strftime("%Y-%m-%d"),
-        "총비용": f"{(i + 1) * 5140:,}원",
+        "총비용": f"{(i + 1) * multiplier:,}원",
         "노출": f"{(i + 1) * 1500:,}",
         "클릭수": f"{(i + 1) * 42:,}",
         "CTR": "2.80%",
@@ -435,7 +469,7 @@ def get_daily_report_data(month_str):
   return pd.DataFrame(data)
 
 
-df_daily = get_daily_report_data(selected_month)
+df_daily = get_daily_report_data(selected_month, selected_id)
 st.dataframe(df_daily, hide_index=True, use_container_width=True, height=300)
 
 st.markdown("---")
@@ -471,7 +505,9 @@ if channel_name == "네이버":
     df_groups = pd.DataFrame(rows)
 
 elif channel_name == "카카오":
-  with st.spinner(f"카카오모먼트 실시간 API 성과 데이터 연동 중..."):
+  with st.spinner(
+      f"카카오모먼트 실시간 API 성과 데이터 연동 중 ({current_advertiser_name})..."
+  ):
     df_kakao, success = fetch_kakao_realtime_data(selected_id)
     if success and not df_kakao.empty:
       df_groups = df_kakao
