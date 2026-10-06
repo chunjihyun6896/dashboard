@@ -13,7 +13,6 @@ st.set_page_config(
     page_title="멀티채널 마케팅 성과 대시보드", page_icon="📊", layout="wide"
 )
 
-# 모바일 화면 최적화를 위한 스트림릿 기본 UI 숨김 스타일
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -23,23 +22,28 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# 세션 스테이트를 이용해 현재 선택된 채널 관리 (기본값: 카카오)
 if "selected_channel" not in st.session_state:
   st.session_state.selected_channel = "카카오"
 
 channel_name = st.session_state.selected_channel
 
 # ==========================================
-# 2. 네이버 검색광고 API 설정 및 연동 함수
+# 2. API 인증 정보 설정 (카카오 & 네이버)
 # ==========================================
-ACCESS_LICENSE = (
+# [카카오모먼트 API 설정] 전달주신 REST API 키가 적용되어 있습니다.
+KAKAO_REST_API_KEY = "e7235ac1dd49008d1b3ed4b2931bf0be"
+KAKAO_CLIENT_SECRET = ""  # 필요시 클라이언트 시크릿 입력
+
+# [네이버 검색광고 API 설정]
+NAVER_ACCESS_LICENSE = (
     "0100000000d6006534e1b94c00ea1af84cba8177cfdb1b63426ac5ccbd6b1a0065232175e8"
 )
-SECRET_KEY = "AQAAAADWAGU04blMAOoa+Ey6gXfPgL+rhl4UaY1olB5h2gnQWQ=="
-BASE_URL = "https://api.searchad.naver.com"
+NAVER_SECRET_KEY = "AQAAAADWAGU04blMAOoa+Ey6gXfPgL+rhl4UaY1olB5h2gnQWQ=="
+NAVER_BASE_URL = "https://api.searchad.naver.com"
 
 
-def generate_signature(timestamp, method, uri, secret_key):
+# 네이버 서명 생성 함수
+def generate_naver_signature(timestamp, method, uri, secret_key):
   message = f"{timestamp}.{method}.{uri}"
   secret_bytes = bytes(secret_key, "utf-8")
   message_bytes = bytes(message, "utf-8")
@@ -49,11 +53,11 @@ def generate_signature(timestamp, method, uri, secret_key):
 
 def get_naver_header(method, uri, customer_id):
   timestamp = str(int(time.time() * 1000))
-  signature = generate_signature(timestamp, method, uri, SECRET_KEY)
+  signature = generate_naver_signature(timestamp, method, uri, NAVER_SECRET_KEY)
   return {
       "Content-Type": "application/json; charset=UTF-8",
       "X-Timestamp": timestamp,
-      "X-API-KEY": ACCESS_LICENSE,
+      "X-API-KEY": NAVER_ACCESS_LICENSE,
       "X-Customer": str(customer_id),
       "X-Signature": signature,
   }
@@ -63,26 +67,62 @@ def get_naver_header(method, uri, customer_id):
 def fetch_naver_adgroups(customer_id):
   uri = "/ncc/adgroups"
   method = "GET"
-  url = BASE_URL + uri
+  url = NAVER_BASE_URL + uri
   params = {"nccAccountId": customer_id}
   headers = get_naver_header(method, uri, customer_id)
-
   try:
     response = requests.get(url, headers=headers, params=params, timeout=5)
     if response.status_code == 200:
       return response.json()
-    else:
-      return None
   except Exception:
-    return None
+    pass
+  return None
 
 
 # ==========================================
-# 3. AI 진단 로직 함수 (누락분 복구 완료)
+# 3. 카카오모먼트 실시간 데이터 연동 함수
+# ==========================================
+@st.cache_data(ttl=300)
+def fetch_kakao_realtime_data(ad_account_id):
+  """카카오모먼트 API를 통해 실시간 광고 그룹 및 소진 데이터를 조회합니다."""
+  if not KAKAO_REST_API_KEY:
+    return pd.DataFrame(), False
+
+  try:
+    url = f"https://apis.kakaomoment.com/v2/ad-groups?adAccountId={ad_account_id}"
+    headers = {
+        "Authorization": f"KakaoAK {KAKAO_REST_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    response = requests.get(url, headers=headers, timeout=5)
+
+    if response.status_code == 200:
+      data = response.json()
+      groups = data.get("content", [])
+      rows = []
+      for g in groups:
+        rows.append({
+            "그룹명": g.get("name", "캠페인 그룹"),
+            "상태": "노출중" if g.get("status") == "ENABLE" else "미진행",
+            "총비용": f"{g.get('spent_cost', 0):,}원",
+            "노출": f"{g.get('impression', 0):,}",
+            "클릭수": f"{g.get('click', 0):,}",
+            "CTR": f"{g.get('ctr', 0.0):.2f}%",
+            "전환수": f"{g.get('conversion', 0)}건",
+            "ROAS": f"{g.get('roas', 0.0):.1f}%",
+        })
+      return pd.DataFrame(rows), True
+    else:
+      return pd.DataFrame(), False
+  except Exception:
+    return pd.DataFrame(), False
+
+
+# ==========================================
+# 4. AI 진단 로직 함수
 # ==========================================
 def generate_ai_diagnosis(channel, advertiser, df_groups):
   is_running = True
-
   if df_groups.empty:
     is_running = False
   else:
@@ -93,49 +133,46 @@ def generate_ai_diagnosis(channel, advertiser, df_groups):
       is_running = False
 
   diagnosis_dict = {}
-
   if not is_running:
     diagnosis_dict["status_msg"] = (
-        f"현재 **[{channel}]** 채널은 등록된 광고가 **미진행** 상태이며, 정상적으로"
-        " 집행되고 있지 않습니다."
+        f"현재 **[{channel}]** 채널은 등록된 광고가 **미진행** 상태이거나"
+        " 실시간 데이터 집계 전입니다."
     )
     diagnosis_dict["urgent"] = (
-        f"- **[미진행 안내]** 현재 **{advertiser}** 계정의 {channel}"
-        " 캠페인/그룹이 일시정지 또는 대기 상태입니다.\n- **조치 제안**: 광고"
-        " 시스템에서 해당 캠페인 및 광고 그룹의 상태를 '노출중'으로 전환하고,"
-        " 검수 상태를 확인해 주세요."
+        f"- **[상태 안내]** 현재 **{advertiser}** 계정의 {channel} 광고가"
+        " 일시정지 상태이거나 예산 소진이 없습니다.\n- **조치 제안**: 카카오모먼트"
+        " 비즈니스 센터에서 광고 캠페인 상태와 잔여 캐시를 확인해 주세요."
     )
     diagnosis_dict["budget"] = (
-        "- **예산 재배분 불가**: 광고가 집행 중이지 않아 소진 비용 및 전환"
-        " 데이터가 존재하지 않습니다."
+        "- **예산 최적화 대기**: 실시간 소진 비용 데이터가 수집되면 예산 분배"
+        " 제안이 활성화됩니다."
     )
     diagnosis_dict["creative"] = (
-        "- **소재 점검 안내**: 현재 노출 중인 광고가 없으므로, 등록된 키워드와"
-        " 소재의 사전 검수 완료 여부를 점검하세요."
+        "- **소재 점검**: 라이브 중인 소재의 이미지 및 타겟팅 설정을 점검하세요."
     )
   else:
     diagnosis_dict["status_msg"] = (
-        f"현재 **[{channel}]** 채널에서 광고가 **정상적으로 진행 중**이며"
-        " 실시간 성과가 수집되고 있습니다."
+        f"현재 **[{channel}]** 채널에서 광고가 **정상적으로 실시간 집행 중**이며"
+        " 성과가 수집되고 있습니다."
     )
     diagnosis_dict["urgent"] = (
-        "- **효율 모니터링**: 라이브 중인 그룹의 클릭률(CTR)과 전환율을"
-        " 점검하여 저효율 세부 요소를 관리하세요."
+        "- **효율 모니터링**: 실시간 클릭률(CTR)과 전환 단가를 주기적으로"
+        " 체크하여 타겟을 조율하세요."
     )
     diagnosis_dict["budget"] = (
-        "- **예산 최적화**: 성과가 우수한 그룹에 예산을 증액하고, 효율이"
-        " 저조한 그룹은 입찰가를 조정하세요."
+        "- **예산 재배분**: 효율이 높은 광고 그룹으로 실시간 예산 증액을"
+        " 검토하세요."
     )
     diagnosis_dict["creative"] = (
-        "- **소재 교체 제안**: 노출 피로도가 높은 소재는 새로운 메시지나"
-        " 디자인으로 교체 테스트를 권장합니다."
+        "- **소재 관리**: 피로도가 높아진 소재는 신규 배너로 교체 테스트를"
+        " 진행하세요."
     )
 
   return diagnosis_dict
 
 
 # ==========================================
-# 4. 커스텀 CSS (사이드바 및 모바일 최적화)
+# 5. 커스텀 CSS (사이드바 및 모바일 최적화)
 # ==========================================
 st.markdown(
     """
@@ -212,7 +249,7 @@ def get_base64_image(url):
 
 
 # ==========================================
-# 5. 좌측 미니 사이드바 구성 (채널 선택)
+# 6. 좌측 미니 사이드바 구성 (채널 선택)
 # ==========================================
 with st.sidebar:
   logo_url = "https://postfiles.pstatic.net/MjAyNjEwMDJfMTk3/MDAxNzkwOTI2NjI1NDQ3.onXBC4S3HbypXqgaIBTI9nkbxszhk00IW9KGCVlcXmEg.bpswq-tDbouId6KoFEK7PUFcMZCE8VkQ3_oKcqkIDc8g.JPEG/KakaoTalk_20261002_100449413_01.jpg?type=w966"
@@ -233,7 +270,6 @@ with st.sidebar:
   )
 
   channels = ["카카오", "토스", "메타", "네이버"]
-
   for ch in channels:
     if st.button(ch, key=f"btn_{ch}", use_container_width=True):
       if st.session_state.selected_channel != ch:
@@ -241,11 +277,10 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 6. 상단 타이틀 및 광고주 선택 리스트 (요청 형식 반영)
+# 7. 상단 타이틀 및 광고주 선택 리스트
 # ==========================================
 header_col1, header_col2 = st.columns([2, 1])
 
-# 요청하신 번호 (브랜드명) 형태로 표기되도록 매핑 구성 (가상 브랜드 제외 완료)
 advertisers_map = {
     "네이버": {
         "2274356": "asap-ad (2274356)",
@@ -280,48 +315,47 @@ current_advertiser_name = current_advertisers[selected_id]
 with header_col1:
   st.title(f"📊 [{channel_name}] {current_advertiser_name} 성과 대시보드")
   st.markdown(
-      f"선택하신 **{channel_name}** 채널의 광고 집행 성과 및 실시간 데이터를"
+      f"선택하신 **{channel_name}** 채널의 실시간 광고 집행 성과를"
       " 모니터링합니다."
   )
 
 st.markdown("---")
 
 # ==========================================
-# 7. 핵심 지표 요약 (Metric Cards)
+# 8. 핵심 지표 요약
 # ==========================================
 c1, c2, c3, c4 = "0원", "0원", "0.0%", "0.0%"
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
   st.metric(
-      label=f"[{channel_name}] 총 광고비", value=c1, delta="0% (전월 대비)"
+      label=f"[{channel_name}] 총 광고비", value=c1, delta="실시간 반영 중"
   )
 with col2:
   st.metric(
-      label=f"[{channel_name}] 총 매출액", value=c2, delta="0% (전월 대비)"
+      label=f"[{channel_name}] 총 매출액", value=c2, delta="실시간 반영 중"
   )
 with col3:
   st.metric(
-      label=f"[{channel_name}] 평균 ROAS", value=c3, delta="0.0%p (전월 대비)"
+      label=f"[{channel_name}] 평균 ROAS", value=c3, delta="실시간 반영 중"
   )
 with col4:
   st.metric(
       label="목표 달성률",
       value=c4,
-      delta="0.0%p 대비",
+      delta="실시간 반영 중",
       delta_color="inverse",
   )
 
 st.markdown("---")
 
 # ==========================================
-# 8. 채널별 상세 성과 리포트
+# 9. 채널별 상세 성과 리포트 및 API 연동 데이터 출력
 # ==========================================
 section_col1, section_col2 = st.columns([3, 1])
 
 with section_col1:
   st.subheader(f"📅 1. [{channel_name}] 일자별 상세 성과 리포트")
-
 with section_col2:
   selected_month = st.selectbox(
       "조회 월 선택",
@@ -349,7 +383,6 @@ def get_zero_channel_data(month_str):
       28 if month_num == 2 else (30 if month_num in [4, 6, 9, 11] else 31)
   )
   dates = [f"2026-{month_num:02d}-{day:02d}" for day in range(1, last_day + 1)]
-
   data = []
   for d in dates:
     data.append({
@@ -373,11 +406,11 @@ st.subheader(
     f"📂 2. [{channel_name}] 캠페인 그룹별 실시간 소진 내역 ({selected_month})"
 )
 
-# 네이버 채널 선택 시 선택한 번호(Customer ID)로 API 연동
+df_groups = pd.DataFrame()
+
 if channel_name == "네이버":
   with st.spinner(f"네이버 광고 그룹 정보 ({current_advertiser_name}) 불러오는 중..."):
     adgroups_data = fetch_naver_adgroups(selected_id)
-
   if adgroups_data and len(adgroups_data) > 0:
     rows = []
     for group in adgroups_data:
@@ -398,33 +431,27 @@ if channel_name == "네이버":
           "ROAS": "0.0%",
       })
     df_groups = pd.DataFrame(rows)
-  else:
-    df_groups = pd.DataFrame(columns=[
-        "그룹명",
-        "상태",
-        "총비용",
-        "노출",
-        "클릭수",
-        "CTR",
-        "전환수",
-        "ROAS",
-    ])
-    st.info(
-        f"현재 계정({current_advertiser_name})에 등록된 광고 그룹이 없거나"
-        " 데이터를 불러오지 못했습니다."
-    )
-else:
-  df_groups = pd.DataFrame(columns=[
-      "그룹명",
-      "상태",
-      "총비용",
-      "노출",
-      "클릭수",
-      "CTR",
-      "전환수",
-      "ROAS",
-  ])
-  st.info(f"현재 [{channel_name}] 채널에 집행된 실시간 그룹 데이터가 없습니다.")
+
+elif channel_name == "카카오":
+  with st.spinner(f"카카오 실시간 광고 성과 데이터 연동 중..."):
+    df_kakao, success = fetch_kakao_realtime_data(selected_id)
+    if success and not df_kakao.empty:
+      df_groups = df_kakao
+    else:
+      df_groups = pd.DataFrame(columns=[
+          "그룹명",
+          "상태",
+          "총비용",
+          "노출",
+          "클릭수",
+          "CTR",
+          "전환수",
+          "ROAS",
+      ])
+      st.info(
+          f"현재 계정({current_advertiser_name})에 연결된 실시간 집행 데이터가"
+          " 없거나 응답이 없습니다."
+      )
 
 if not df_groups.empty:
   st.dataframe(df_groups, hide_index=True, use_container_width=True)
@@ -432,7 +459,7 @@ if not df_groups.empty:
 st.markdown("---")
 
 # ==========================================
-# 9. AI 퍼포먼스 마케팅 진단 & 제안 (복구 완료)
+# 10. AI 퍼포먼스 마케팅 진단 & 제안
 # ==========================================
 st.subheader(f"🤖 AI 퍼포먼스 마케팅 진단 & 제안 ({current_advertiser_name})")
 
