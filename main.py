@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import requests
 import time
-import json
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 
@@ -29,6 +28,7 @@ KAKAO_BASE_URL = "https://apis.moment.kakao.com/openapi/v4"
 st.markdown(
     """
     <style>
+
     .main {
         background-color: #f7f7f7;
     }
@@ -71,41 +71,56 @@ st.markdown(
         border: 1px solid #b7e4c7;
         border-radius: 8px;
         color: #1b6e36;
+        margin-bottom: 15px;
     }
 
-    .status-error {
-        padding: 10px 14px;
-        background: #fff0f0;
-        border: 1px solid #f0b8b8;
-        border-radius: 8px;
-        color: #a32929;
+    .diagnosis-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 22px;
+        border: 1px solid #eeeeee;
+        margin-bottom: 12px;
     }
 
-    .status-info {
-        padding: 10px 14px;
-        background: #eef5ff;
-        border: 1px solid #bfd5f5;
-        border-radius: 8px;
-        color: #245a9b;
+    .diagnosis-title {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 8px;
     }
+
+    .diagnosis-text {
+        font-size: 14px;
+        line-height: 1.7;
+        color: #444444;
+    }
+
+    .improvement-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 22px;
+        border: 1px solid #eeeeee;
+        margin-bottom: 12px;
+    }
+
+    .priority-high {
+        color: #d32f2f;
+        font-weight: 700;
+    }
+
+    .priority-medium {
+        color: #ed8b00;
+        font-weight: 700;
+    }
+
+    .priority-good {
+        color: #188038;
+        font-weight: 700;
+    }
+
     </style>
     """,
     unsafe_allow_html=True
 )
-
-
-# ============================================================
-# 세션 상태
-# ============================================================
-
-if "kakao_logs" not in st.session_state:
-    st.session_state.kakao_logs = []
-
-if "kakao_raw" not in st.session_state:
-    st.session_state.kakao_raw = []
-
-if "kakao_errors" not in st.session_state:
-    st.session_state.kakao_errors = []
 
 
 # ============================================================
@@ -116,9 +131,11 @@ ADVERTISERS = {
     "리만": {
         "ad_account_id": "995724"
     },
+
     "광고주 2": {
         "ad_account_id": "558725"
     },
+
     "광고주 3": {
         "ad_account_id": "987505"
     }
@@ -169,11 +186,9 @@ def percent(value):
 
 
 def safe_float(value, default=0.0):
+
     if value is None:
         return default
-
-    if isinstance(value, bool):
-        return float(value)
 
     try:
         return float(value)
@@ -182,6 +197,7 @@ def safe_float(value, default=0.0):
 
 
 def safe_int(value, default=0):
+
     if value is None:
         return default
 
@@ -191,17 +207,12 @@ def safe_int(value, default=0):
         return default
 
 
-def clear_debug():
-    st.session_state.kakao_logs = []
-    st.session_state.kakao_raw = []
-    st.session_state.kakao_errors = []
-
-
 # ============================================================
 # Kakao Header
 # ============================================================
 
 def get_kakao_headers(ad_account_id):
+
     return {
         "Authorization": f"Bearer {KAKAO_BUSINESS_TOKEN}",
         "adAccountId": str(ad_account_id),
@@ -210,27 +221,23 @@ def get_kakao_headers(ad_account_id):
 
 
 # ============================================================
-# 공통 API GET
+# Kakao API GET
 # ============================================================
 
 def kakao_get(
     endpoint,
     ad_account_id,
-    params=None,
-    label=""
+    params=None
 ):
+
     url = f"{KAKAO_BASE_URL}{endpoint}"
 
-    headers = get_kakao_headers(ad_account_id)
-
-    log_item = {
-        "시간": now_kst().strftime("%Y-%m-%d %H:%M:%S"),
-        "구분": label,
-        "URL": url,
-        "파라미터": params
-    }
+    headers = get_kakao_headers(
+        ad_account_id
+    )
 
     try:
+
         response = requests.get(
             url,
             headers=headers,
@@ -238,48 +245,36 @@ def kakao_get(
             timeout=30
         )
 
-        log_item["HTTP"] = response.status_code
-
-        try:
-            data = response.json()
-        except Exception:
-            data = {
-                "raw_text": response.text
-            }
-
-        log_item["응답"] = data
-
-        st.session_state.kakao_logs.append(log_item)
-
-        st.session_state.kakao_raw.append({
-            "label": label,
-            "url": response.url,
-            "status": response.status_code,
-            "response": data
-        })
-
         if response.status_code != 200:
-            st.session_state.kakao_errors.append({
-                "label": label,
-                "status": response.status_code,
-                "response": data
-            })
+
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = response.text
+
+            st.error(
+                f"카카오 API 오류 "
+                f"(HTTP {response.status_code})"
+            )
+
+            with st.expander(
+                "오류 내용 확인"
+            ):
+                st.write(error_data)
 
             return None
 
-        return data
+        try:
+            return response.json()
+
+        except Exception:
+            return None
 
     except Exception as e:
-        log_item["HTTP"] = "REQUEST ERROR"
-        log_item["응답"] = str(e)
 
-        st.session_state.kakao_logs.append(log_item)
-
-        st.session_state.kakao_errors.append({
-            "label": label,
-            "status": "REQUEST ERROR",
-            "response": str(e)
-        })
+        st.error(
+            f"카카오 API 연결 오류: {e}"
+        )
 
         return None
 
@@ -293,23 +288,31 @@ def fetch_campaigns(ad_account_id):
     data = kakao_get(
         "/campaigns",
         ad_account_id,
-        params={},
-        label="캠페인 목록"
+        params={}
     )
 
     if not data:
         return []
 
-    campaigns = data.get("data", [])
+    campaigns = data.get(
+        "data",
+        []
+    )
 
-    if not isinstance(campaigns, list):
+    if not isinstance(
+        campaigns,
+        list
+    ):
         return []
 
     result = []
 
     for item in campaigns:
 
-        if not isinstance(item, dict):
+        if not isinstance(
+            item,
+            dict
+        ):
             continue
 
         campaign_id = (
@@ -329,9 +332,12 @@ def fetch_campaigns(ad_account_id):
             continue
 
         result.append({
-            "campaign_id": str(campaign_id),
-            "campaign_name": str(campaign_name),
-            "raw": item
+            "campaign_id": str(
+                campaign_id
+            ),
+            "campaign_name": str(
+                campaign_name
+            )
         })
 
     return result
@@ -339,13 +345,6 @@ def fetch_campaigns(ad_account_id):
 
 # ============================================================
 # 광고계정 보고서
-#
-# 가장 중요한 부분
-#
-# /adAccounts/report
-#
-# 광고계정 전체 데이터를 가져오기 때문에
-# 광고그룹별 ID를 하나하나 넘기는 방식보다 안정적임.
 # ============================================================
 
 def fetch_account_report(
@@ -358,102 +357,49 @@ def fetch_account_report(
     params = [
         ("timeUnit", "DAY"),
         ("metricsGroup", "BASIC"),
-        ("metricsGroup", "PIXEL_SDK_CONVERSION")
+        (
+            "metricsGroup",
+            "PIXEL_SDK_CONVERSION"
+        )
     ]
 
     if today:
-        params.append(("datePreset", "TODAY"))
-        label = "광고계정 오늘 실시간 보고서"
+
+        params.append(
+            ("datePreset", "TODAY")
+        )
 
     else:
+
         params.append(
-            ("start", start_date.strftime("%Y%m%d"))
+            (
+                "start",
+                start_date.strftime("%Y%m%d")
+            )
         )
 
         params.append(
-            ("end", end_date.strftime("%Y%m%d"))
-        )
-
-        label = (
-            f"광고계정 기간 보고서 "
-            f"{start_date} ~ {end_date}"
+            (
+                "end",
+                end_date.strftime("%Y%m%d")
+            )
         )
 
     return kakao_get(
         "/adAccounts/report",
         ad_account_id,
-        params=params,
-        label=label
+        params=params
     )
 
 
 # ============================================================
-# 캠페인 보고서
-#
-# 캠페인별 서비스신청 수량 확인용
+# API → DataFrame
 # ============================================================
 
-def fetch_campaign_report(
-    ad_account_id,
-    campaign_ids,
-    start_date=None,
-    end_date=None,
-    today=False
-):
-
-    if not campaign_ids:
-        return None
-
-    params = [
-        ("timeUnit", "DAY"),
-        ("level", "CAMPAIGN"),
-        ("metricsGroup", "BASIC"),
-        ("metricsGroup", "PIXEL_SDK_CONVERSION")
-    ]
-
-    # 공식 API는 캠페인 ID 최대 5개
-    for cid in campaign_ids:
-        params.append(("campaignId", str(cid)))
-
-    if today:
-        params.append(("datePreset", "TODAY"))
-        label = "캠페인 오늘 실시간 보고서"
-
-    else:
-        params.append(
-            ("start", start_date.strftime("%Y%m%d"))
-        )
-
-        params.append(
-            ("end", end_date.strftime("%Y%m%d"))
-        )
-
-        label = (
-            f"캠페인 기간 보고서 "
-            f"{start_date} ~ {end_date}"
-        )
-
-    return kakao_get(
-        "/campaigns/report",
-        ad_account_id,
-        params=params,
-        label=label
-    )
-
-
-# ============================================================
-# API data → DataFrame
-# ============================================================
-
-def report_to_dataframe(
-    report,
-    report_type="account"
-):
+def report_to_dataframe(report):
 
     columns = [
         "date",
-        "campaign_id",
-        "campaign_name",
         "cost",
         "imp",
         "click",
@@ -463,98 +409,125 @@ def report_to_dataframe(
     ]
 
     if not report:
-        return pd.DataFrame(columns=columns)
 
-    data = report.get("data", [])
+        return pd.DataFrame(
+            columns=columns
+        )
 
-    if not isinstance(data, list):
-        return pd.DataFrame(columns=columns)
+    data = report.get(
+        "data",
+        []
+    )
+
+    if not isinstance(
+        data,
+        list
+    ):
+
+        return pd.DataFrame(
+            columns=columns
+        )
 
     rows = []
 
     for item in data:
 
-        if not isinstance(item, dict):
+        if not isinstance(
+            item,
+            dict
+        ):
             continue
 
-        dimensions = item.get("dimensions") or {}
-        metrics = item.get("metrics") or {}
+        dimensions = (
+            item.get("dimensions")
+            or {}
+        )
 
-        if not isinstance(dimensions, dict):
+        metrics = (
+            item.get("metrics")
+            or {}
+        )
+
+        if not isinstance(
+            dimensions,
+            dict
+        ):
             dimensions = {}
 
-        if not isinstance(metrics, dict):
+        if not isinstance(
+            metrics,
+            dict
+        ):
             metrics = {}
 
-        # 빈 데이터
         if not dimensions and not metrics:
             continue
 
-        start_value = item.get("start")
+        start_value = item.get(
+            "start"
+        )
+
+        report_date = None
 
         if start_value:
+
             try:
+
                 report_date = pd.to_datetime(
                     start_value
                 ).date()
+
             except Exception:
+
                 report_date = None
-        else:
-            report_date = None
-
-        campaign_id = (
-            dimensions.get("campaign_id")
-            or dimensions.get("campaignId")
-        )
-
-        # 기본 지표
-        cost = safe_float(
-            metrics.get("cost")
-        )
-
-        imp = safe_int(
-            metrics.get("imp")
-        )
-
-        click = safe_int(
-            metrics.get("click")
-        )
-
-        ctr = safe_float(
-            metrics.get("ctr")
-        )
-
-        # 전환 지표
-        signup_1d = safe_int(
-            metrics.get("conv_signup_1d")
-        )
-
-        signup_7d = safe_int(
-            metrics.get("conv_signup_7d")
-        )
 
         rows.append({
+
             "date": report_date,
-            "campaign_id": (
-                str(campaign_id)
-                if campaign_id is not None
-                else ""
+
+            "cost": safe_float(
+                metrics.get("cost")
             ),
-            "campaign_name": "",
-            "cost": cost,
-            "imp": imp,
-            "click": click,
-            "ctr": ctr,
-            "signup_1d": signup_1d,
-            "signup_7d": signup_7d
+
+            "imp": safe_int(
+                metrics.get("imp")
+            ),
+
+            "click": safe_int(
+                metrics.get("click")
+            ),
+
+            "ctr": safe_float(
+                metrics.get("ctr")
+            ),
+
+            "signup_1d": safe_int(
+                metrics.get(
+                    "conv_signup_1d"
+                )
+            ),
+
+            "signup_7d": safe_int(
+                metrics.get(
+                    "conv_signup_7d"
+                )
+            )
         })
 
     if not rows:
-        return pd.DataFrame(columns=columns)
 
-    df = pd.DataFrame(rows)
+        return pd.DataFrame(
+            columns=columns
+        )
 
-    # 반드시 dtype 명시
+    df = pd.DataFrame(
+        rows
+    )
+
+    # --------------------------------------------------------
+    # dtype 명시
+    # --------------------------------------------------------
+
     df["date"] = pd.to_datetime(
         df["date"],
         errors="coerce"
@@ -594,62 +567,7 @@ def report_to_dataframe(
 
 
 # ============================================================
-# 캠페인명 연결
-# ============================================================
-
-def attach_campaign_names(
-    df,
-    campaigns
-):
-
-    if df.empty:
-        return df
-
-    campaign_map = {
-        str(x["campaign_id"]): x["campaign_name"]
-        for x in campaigns
-    }
-
-    df = df.copy()
-
-    df["campaign_name"] = (
-        df["campaign_id"]
-        .astype(str)
-        .map(campaign_map)
-        .fillna("")
-    )
-
-    return df
-
-
-# ============================================================
-# 오늘 데이터가 기간 데이터와 중복될 경우 제거
-# ============================================================
-
-def remove_today_duplicates(
-    df,
-    current_date
-):
-
-    if df.empty:
-        return df
-
-    df = df.copy()
-
-    df["date"] = pd.to_datetime(
-        df["date"],
-        errors="coerce"
-    )
-
-    return df[
-        df["date"].dt.date != current_date
-    ].copy()
-
-
-# ============================================================
-# 전체 날짜 만들기
-#
-# LossySetitemError 방지
+# 전체 날짜 DataFrame
 # ============================================================
 
 def make_full_date_dataframe(
@@ -666,27 +584,36 @@ def make_full_date_dataframe(
     )
 
     if selected_month == 12:
+
         next_month = date(
             selected_year + 1,
             1,
             1
         )
+
     else:
+
         next_month = date(
             selected_year,
             selected_month + 1,
             1
         )
 
-    last_day = next_month - timedelta(days=1)
+    last_day = (
+        next_month
+        - timedelta(days=1)
+    )
 
-    # 현재 달이면 오늘까지만
+    # 현재 월이면 오늘까지만
     if (
         selected_year == today.year
         and selected_month == today.month
     ):
+
         end = today
+
     else:
+
         end = last_day
 
     date_range = pd.date_range(
@@ -699,16 +626,18 @@ def make_full_date_dataframe(
         "date": date_range
     })
 
-    # 타입을 처음부터 정확히 설정
+    # dtype 미리 지정
     calendar_df["cost"] = 0.0
     calendar_df["imp"] = 0
     calendar_df["click"] = 0
+    calendar_df["ctr"] = 0.0
     calendar_df["signup_1d"] = 0
     calendar_df["signup_7d"] = 0
 
-    if raw_df is None or raw_df.empty:
-
-        calendar_df["ctr"] = 0.0
+    if (
+        raw_df is None
+        or raw_df.empty
+    ):
 
         return calendar_df
 
@@ -723,7 +652,6 @@ def make_full_date_dataframe(
         subset=["date"]
     )
 
-    # 해당 월만
     work = work[
         (
             work["date"].dt.year
@@ -738,14 +666,14 @@ def make_full_date_dataframe(
 
     if work.empty:
 
-        calendar_df["ctr"] = 0.0
-
         return calendar_df
 
-    # 날짜별 합계
     grouped = (
         work
-        .groupby("date", as_index=False)
+        .groupby(
+            "date",
+            as_index=False
+        )
         .agg({
             "cost": "sum",
             "imp": "sum",
@@ -755,15 +683,16 @@ def make_full_date_dataframe(
         })
     )
 
-    # 합친다
     result = calendar_df.merge(
         grouped,
         on="date",
         how="left",
-        suffixes=("", "_api")
+        suffixes=(
+            "",
+            "_api"
+        )
     )
 
-    # API 데이터가 있는 경우만 교체
     result["cost"] = (
         pd.to_numeric(
             result["cost_api"],
@@ -809,22 +738,24 @@ def make_full_date_dataframe(
         .astype(int)
     )
 
-    # CTR은 직접 계산
+    # CTR 직접 계산
     result["ctr"] = 0.0
 
-    valid_imp = result["imp"] > 0
+    valid = (
+        result["imp"] > 0
+    )
 
     result.loc[
-        valid_imp,
+        valid,
         "ctr"
     ] = (
         result.loc[
-            valid_imp,
+            valid,
             "click"
         ].astype(float)
         /
         result.loc[
-            valid_imp,
+            valid,
             "imp"
         ].astype(float)
         * 100.0
@@ -839,7 +770,7 @@ def make_full_date_dataframe(
         .astype(float)
     )
 
-    result = result[
+    return result[
         [
             "date",
             "cost",
@@ -851,74 +782,9 @@ def make_full_date_dataframe(
         ]
     ]
 
-    return result
-
 
 # ============================================================
-# 캠페인별 집계
-# ============================================================
-
-def make_campaign_dataframe(
-    raw_df,
-    campaigns
-):
-
-    if raw_df is None or raw_df.empty:
-        return pd.DataFrame()
-
-    df = raw_df.copy()
-
-    if "campaign_id" not in df.columns:
-        return pd.DataFrame()
-
-    df["campaign_id"] = (
-        df["campaign_id"]
-        .astype(str)
-    )
-
-    df = (
-        df
-        .groupby(
-            [
-                "campaign_id",
-                "campaign_name"
-            ],
-            as_index=False
-        )
-        .agg({
-            "cost": "sum",
-            "imp": "sum",
-            "click": "sum",
-            "signup_1d": "sum",
-            "signup_7d": "sum"
-        })
-    )
-
-    df["ctr"] = 0.0
-
-    valid = df["imp"] > 0
-
-    df.loc[
-        valid,
-        "ctr"
-    ] = (
-        df.loc[
-            valid,
-            "click"
-        ].astype(float)
-        /
-        df.loc[
-            valid,
-            "imp"
-        ].astype(float)
-        * 100
-    )
-
-    return df
-
-
-# ============================================================
-# 전체 데이터 수집
+# 데이터 전체 수집
 # ============================================================
 
 def load_kakao_data(
@@ -927,32 +793,7 @@ def load_kakao_data(
     selected_month
 ):
 
-    clear_debug()
-
-    if not KAKAO_BUSINESS_TOKEN:
-        return {
-            "success": False,
-            "message": "KAKAO_BUSINESS_TOKEN이 없습니다.",
-            "daily": pd.DataFrame(),
-            "campaign": pd.DataFrame(),
-            "campaigns": [],
-            "account_raw": None,
-            "today_raw": None
-        }
-
     today = today_kst()
-
-    # --------------------------------------------------------
-    # 캠페인 목록
-    # --------------------------------------------------------
-
-    campaigns = fetch_campaigns(
-        ad_account_id
-    )
-
-    # --------------------------------------------------------
-    # 선택한 월 날짜
-    # --------------------------------------------------------
 
     month_start = date(
         selected_year,
@@ -961,25 +802,28 @@ def load_kakao_data(
     )
 
     if selected_month == 12:
+
         next_month = date(
             selected_year + 1,
             1,
             1
         )
+
     else:
+
         next_month = date(
             selected_year,
             selected_month + 1,
             1
         )
 
-    month_end = next_month - timedelta(days=1)
+    month_end = (
+        next_month
+        - timedelta(days=1)
+    )
 
     # --------------------------------------------------------
     # 과거 데이터
-    #
-    # 오늘은 API start/end로 조회할 수 없으므로
-    # 어제까지 조회
     # --------------------------------------------------------
 
     historical_df = pd.DataFrame()
@@ -991,7 +835,7 @@ def load_kakao_data(
 
     if month_start <= historical_end:
 
-        account_raw = fetch_account_report(
+        historical_raw = fetch_account_report(
             ad_account_id,
             start_date=month_start,
             end_date=historical_end,
@@ -999,31 +843,20 @@ def load_kakao_data(
         )
 
         historical_df = report_to_dataframe(
-            account_raw,
-            report_type="account"
+            historical_raw
         )
-
-    else:
-        account_raw = None
 
     # --------------------------------------------------------
     # 오늘 데이터
-    #
-    # 핵심
-    #
-    # datePreset=TODAY
     # --------------------------------------------------------
 
     today_df = pd.DataFrame()
-
-    today_raw = None
 
     if (
         selected_year == today.year
         and selected_month == today.month
     ):
 
-        # API 요청 제한 때문에 잠깐 대기
         time.sleep(1.2)
 
         today_raw = fetch_account_report(
@@ -1032,8 +865,7 @@ def load_kakao_data(
         )
 
         today_df = report_to_dataframe(
-            today_raw,
-            report_type="account"
+            today_raw
         )
 
     # --------------------------------------------------------
@@ -1042,29 +874,28 @@ def load_kakao_data(
 
     frames = []
 
-    if (
-        historical_df is not None
-        and not historical_df.empty
-    ):
-        frames.append(historical_df)
+    if not historical_df.empty:
+        frames.append(
+            historical_df
+        )
 
-    if (
-        today_df is not None
-        and not today_df.empty
-    ):
-        frames.append(today_df)
+    if not today_df.empty:
+        frames.append(
+            today_df
+        )
 
     if frames:
-        account_df = pd.concat(
+
+        raw_df = pd.concat(
             frames,
             ignore_index=True
         )
+
     else:
-        account_df = pd.DataFrame(
+
+        raw_df = pd.DataFrame(
             columns=[
                 "date",
-                "campaign_id",
-                "campaign_name",
                 "cost",
                 "imp",
                 "click",
@@ -1079,114 +910,512 @@ def load_kakao_data(
     # --------------------------------------------------------
 
     daily_df = make_full_date_dataframe(
-        account_df,
+        raw_df,
         selected_year,
         selected_month,
         today
     )
 
+    return daily_df
+
+
+# ============================================================
+# AI 마케팅 진단
+# ============================================================
+
+def generate_marketing_diagnosis(
+    df,
+    today
+):
+
+    if df is None or df.empty:
+
+        return {
+            "summary": (
+                "현재 분석할 광고 데이터가 없습니다."
+            ),
+            "diagnosis": [],
+            "improvements": []
+        }
+
+    work = df.copy()
+
     # --------------------------------------------------------
-    # 캠페인 보고서
-    #
-    # 캠페인별 데이터를 별도로 조회
+    # 전체 지표
     # --------------------------------------------------------
 
-    campaign_df_list = []
+    total_cost = float(
+        work["cost"].sum()
+    )
 
-    campaign_ids = [
-        str(x["campaign_id"])
-        for x in campaigns
-    ]
+    total_imp = int(
+        work["imp"].sum()
+    )
 
-    # 캠페인 API는 최대 5개씩
-    chunks = [
-        campaign_ids[i:i + 5]
-        for i in range(
-            0,
-            len(campaign_ids),
-            5
-        )
-    ]
+    total_click = int(
+        work["click"].sum()
+    )
 
-    for index, chunk in enumerate(chunks):
+    total_signup = int(
+        work["signup_7d"].sum()
+    )
 
-        if index > 0:
-            # 캠페인 보고서는 5초 제한
-            time.sleep(5.2)
+    if total_imp > 0:
 
-        # 과거
-        if month_start <= historical_end:
-
-            c_raw = fetch_campaign_report(
-                ad_account_id,
-                chunk,
-                start_date=month_start,
-                end_date=historical_end,
-                today=False
-            )
-
-            c_df = report_to_dataframe(
-                c_raw,
-                report_type="campaign"
-            )
-
-            if not c_df.empty:
-                campaign_df_list.append(
-                    c_df
-                )
-
-        # 오늘
-        if (
-            selected_year == today.year
-            and selected_month == today.month
-        ):
-
-            time.sleep(5.2)
-
-            c_today_raw = fetch_campaign_report(
-                ad_account_id,
-                chunk,
-                today=True
-            )
-
-            c_today_df = report_to_dataframe(
-                c_today_raw,
-                report_type="campaign"
-            )
-
-            if not c_today_df.empty:
-                campaign_df_list.append(
-                    c_today_df
-                )
-
-    if campaign_df_list:
-
-        campaign_raw_df = pd.concat(
-            campaign_df_list,
-            ignore_index=True
-        )
-
-        campaign_raw_df = attach_campaign_names(
-            campaign_raw_df,
-            campaigns
-        )
-
-        campaign_df = make_campaign_dataframe(
-            campaign_raw_df,
-            campaigns
+        total_ctr = (
+            total_click
+            / total_imp
+            * 100
         )
 
     else:
-        campaign_df = pd.DataFrame()
+
+        total_ctr = 0
+
+    if total_signup > 0:
+
+        cpa = (
+            total_cost
+            / total_signup
+        )
+
+    else:
+
+        cpa = 0
+
+    if total_click > 0:
+
+        click_to_signup = (
+            total_signup
+            / total_click
+            * 100
+        )
+
+    else:
+
+        click_to_signup = 0
+
+    # --------------------------------------------------------
+    # 데이터 발생일
+    # --------------------------------------------------------
+
+    active_days = work[
+        work["cost"] > 0
+    ]
+
+    active_day_count = len(
+        active_days
+    )
+
+    if active_day_count > 0:
+
+        avg_daily_cost = (
+            total_cost
+            / active_day_count
+        )
+
+    else:
+
+        avg_daily_cost = 0
+
+    # --------------------------------------------------------
+    # 신청 발생일
+    # --------------------------------------------------------
+
+    signup_days = work[
+        work["signup_7d"] > 0
+    ]
+
+    signup_day_count = len(
+        signup_days
+    )
+
+    # --------------------------------------------------------
+    # 최대 광고비 날짜
+    # --------------------------------------------------------
+
+    if not work.empty:
+
+        max_cost_row = work.loc[
+            work["cost"].idxmax()
+        ]
+
+    else:
+
+        max_cost_row = None
+
+    # --------------------------------------------------------
+    # 최대 CTR 날짜
+    # --------------------------------------------------------
+
+    if not work.empty:
+
+        max_ctr_row = work.loc[
+            work["ctr"].idxmax()
+        ]
+
+    else:
+
+        max_ctr_row = None
+
+    # --------------------------------------------------------
+    # 오늘 데이터
+    # --------------------------------------------------------
+
+    today_rows = work[
+        work["date"].dt.date
+        == today
+    ]
+
+    if not today_rows.empty:
+
+        today_cost = float(
+            today_rows["cost"].sum()
+        )
+
+        today_imp = int(
+            today_rows["imp"].sum()
+        )
+
+        today_click = int(
+            today_rows["click"].sum()
+        )
+
+        today_signup = int(
+            today_rows["signup_7d"].sum()
+        )
+
+    else:
+
+        today_cost = 0
+        today_imp = 0
+        today_click = 0
+        today_signup = 0
+
+    if today_imp > 0:
+
+        today_ctr = (
+            today_click
+            / today_imp
+            * 100
+        )
+
+    else:
+
+        today_ctr = 0
+
+    # ========================================================
+    # 진단 생성
+    # ========================================================
+
+    diagnosis = []
+
+    improvements = []
+
+    # --------------------------------------------------------
+    # 1. CTR 진단
+    # --------------------------------------------------------
+
+    if total_ctr < 0.5:
+
+        diagnosis.append({
+            "level": "high",
+            "title": "클릭 유도력이 낮습니다",
+            "text": (
+                f"현재 CTR은 {total_ctr:.2f}%로 "
+                "광고가 노출되는 것에 비해 클릭을 충분히 "
+                "끌어내지 못하고 있습니다."
+            )
+        })
+
+        improvements.append({
+            "level": "high",
+            "title": "광고 소재 개선",
+            "text": (
+                "현재 소재의 첫 문장과 핵심 혜택을 "
+                "다시 검토하는 것이 우선입니다. "
+                "고객이 광고를 보는 즉시 "
+                "'내가 받을 수 있는 혜택'이 보이도록 "
+                "메인 문구를 더 직접적으로 구성하는 것을 권장합니다."
+            )
+        })
+
+    elif total_ctr < 1.0:
+
+        diagnosis.append({
+            "level": "medium",
+            "title": "CTR이 보통 수준입니다",
+            "text": (
+                f"CTR은 {total_ctr:.2f}%입니다. "
+                "기본적인 클릭은 발생하고 있지만 "
+                "소재 개선을 통해 추가적인 클릭 확보가 가능한 구간입니다."
+            )
+        })
+
+        improvements.append({
+            "level": "medium",
+            "title": "소재 A/B 테스트",
+            "text": (
+                "현재 소재를 유지하면서 제목, 핵심 혜택, "
+                "CTA 문구를 각각 다르게 만든 소재를 추가해 "
+                "클릭률 차이를 비교하는 것을 권장합니다."
+            )
+        })
+
+    else:
+
+        diagnosis.append({
+            "level": "good",
+            "title": "클릭 유도력은 양호합니다",
+            "text": (
+                f"CTR {total_ctr:.2f}%로 "
+                "광고 노출 대비 클릭 반응은 양호한 편입니다."
+            )
+        })
+
+        improvements.append({
+            "level": "good",
+            "title": "현재 소재의 강점 유지",
+            "text": (
+                "CTR이 양호하므로 소재를 급격하게 변경하기보다 "
+                "현재 잘 작동하는 소재를 기준으로 "
+                "세부적인 A/B 테스트를 진행하는 것이 좋습니다."
+            )
+        })
+
+    # --------------------------------------------------------
+    # 2. 전환 진단
+    # --------------------------------------------------------
+
+    if total_click > 0 and total_signup == 0:
+
+        diagnosis.append({
+            "level": "high",
+            "title": "클릭은 발생하지만 서비스 신청으로 연결되지 않습니다",
+            "text": (
+                f"총 {total_click:,}회의 클릭이 발생했지만 "
+                "현재 서비스 신청(7일)은 0건입니다. "
+                "광고 소재보다는 랜딩페이지, 상담 신청 과정, "
+                "고객의 구매/신청 의도에서 이탈이 발생하고 있을 가능성이 높습니다."
+            )
+        })
+
+        improvements.append({
+            "level": "high",
+            "title": "랜딩페이지와 신청 과정 점검",
+            "text": (
+                "광고 클릭 후 실제 신청까지의 과정을 확인하세요. "
+                "페이지 로딩속도, 신청 버튼 위치, 전화번호/상담폼, "
+                "신청 절차가 복잡하지 않은지 우선적으로 확인하는 것을 권장합니다."
+            )
+        })
+
+    elif total_signup > 0:
+
+        diagnosis.append({
+            "level": "good",
+            "title": "광고가 실제 신청으로 연결되고 있습니다",
+            "text": (
+                f"서비스 신청(7일) {total_signup:,}건이 발생했으며 "
+                f"클릭 대비 신청 전환율은 약 {click_to_signup:.2f}%입니다."
+            )
+        })
+
+        if cpa > 0:
+
+            improvements.append({
+                "level": "medium",
+                "title": "CPA 중심으로 효율 최적화",
+                "text": (
+                    f"현재 평균 CPA는 약 {cpa:,.0f}원입니다. "
+                    "신청이 발생하는 소재와 시간대에 예산을 집중하고 "
+                    "신청 없이 광고비만 사용하는 구간의 비중을 줄이는 방향으로 "
+                    "최적화하는 것을 권장합니다."
+                )
+            })
+
+    # --------------------------------------------------------
+    # 3. 광고비 진단
+    # --------------------------------------------------------
+
+    if (
+        total_cost > 0
+        and total_signup == 0
+    ):
+
+        diagnosis.append({
+            "level": "high",
+            "title": "광고비 대비 전환 성과가 확인되지 않습니다",
+            "text": (
+                f"현재까지 {total_cost:,.0f}원의 광고비가 사용되었지만 "
+                "서비스 신청(7일)이 발생하지 않았습니다."
+            )
+        })
+
+        improvements.append({
+            "level": "high",
+            "title": "무전환 구간의 예산 점검",
+            "text": (
+                "광고비가 지속적으로 발생하는데 신청이 없다면 "
+                "예산을 바로 늘리기보다 소재·타겟·랜딩페이지 중 "
+                "어느 단계에서 문제가 발생하는지 먼저 확인하는 것이 좋습니다."
+            )
+        })
+
+    # --------------------------------------------------------
+    # 4. 광고비 집중도
+    # --------------------------------------------------------
+
+    if (
+        max_cost_row is not None
+        and total_cost > 0
+    ):
+
+        max_cost = float(
+            max_cost_row["cost"]
+        )
+
+        max_cost_ratio = (
+            max_cost
+            / total_cost
+            * 100
+        )
+
+        if max_cost_ratio >= 40:
+
+            diagnosis.append({
+                "level": "medium",
+                "title": "특정 날짜에 광고비가 집중되어 있습니다",
+                "text": (
+                    f"{max_cost_row['date'].strftime('%m월 %d일')}에 "
+                    f"{max_cost:,.0f}원이 사용되어 "
+                    f"전체 광고비의 약 {max_cost_ratio:.1f}%가 "
+                    "하루에 집중되었습니다."
+                )
+            })
+
+            improvements.append({
+                "level": "medium",
+                "title": "예산 분산 및 효율 확인",
+                "text": (
+                    "특정 날짜에 예산이 집중되어 있다면 "
+                    "해당 날짜의 신청 수와 CPA를 함께 확인하고 "
+                    "성과가 좋은 날짜에 의도적으로 예산을 집중할지 판단하세요."
+                )
+            })
+
+    # --------------------------------------------------------
+    # 5. 오늘 성과
+    # --------------------------------------------------------
+
+    if today_cost > 0:
+
+        if (
+            total_cost > 0
+            and active_day_count > 1
+        ):
+
+            avg_before_today = (
+                total_cost
+                - today_cost
+            ) / max(
+                active_day_count - 1,
+                1
+            )
+
+            if today_cost > (
+                avg_before_today * 1.5
+            ):
+
+                diagnosis.append({
+                    "level": "medium",
+                    "title": "오늘 광고비 지출이 평소보다 높습니다",
+                    "text": (
+                        f"오늘 광고비는 {today_cost:,.0f}원으로 "
+                        "기존 활성일 평균보다 높은 수준입니다. "
+                        "오늘 발생한 클릭과 신청을 함께 확인할 필요가 있습니다."
+                    )
+                })
+
+    # --------------------------------------------------------
+    # 6. 신청 발생 빈도
+    # --------------------------------------------------------
+
+    if (
+        total_signup > 0
+        and active_day_count > 0
+    ):
+
+        signup_rate_days = (
+            signup_day_count
+            / active_day_count
+            * 100
+        )
+
+        if signup_rate_days < 30:
+
+            diagnosis.append({
+                "level": "medium",
+                "title": "신청 발생이 특정 날짜에 편중되어 있습니다",
+                "text": (
+                    f"광고가 집행된 {active_day_count}일 중 "
+                    f"{signup_day_count}일에서만 신청이 발생했습니다. "
+                    "일부 날짜나 조건에서 성과가 집중되고 있을 가능성이 있습니다."
+                )
+            })
+
+            improvements.append({
+                "level": "medium",
+                "title": "성과 발생 조건 분석",
+                "text": (
+                    "신청이 발생한 날짜의 광고비, 클릭량, CTR을 비교해 "
+                    "성과가 좋은 패턴을 찾아 예산 배분 기준으로 활용하는 것이 좋습니다."
+                )
+            })
+
+    # --------------------------------------------------------
+    # 7. 전체 요약
+    # --------------------------------------------------------
+
+    if total_signup > 0:
+
+        summary = (
+            f"현재까지 광고비 {total_cost:,.0f}원으로 "
+            f"서비스 신청 {total_signup:,}건을 확보하고 있습니다. "
+            f"CTR은 {total_ctr:.2f}%, 평균 CPA는 "
+            f"{cpa:,.0f}원입니다. "
+            "현재는 전환을 유지하면서 광고 소재와 예산 배분을 "
+            "세밀하게 최적화하는 방향이 적절합니다."
+        )
+
+    elif total_click > 0:
+
+        summary = (
+            f"현재 광고비 {total_cost:,.0f}원, "
+            f"클릭 {total_click:,}회가 발생하고 있지만 "
+            "서비스 신청으로 이어지는 성과가 부족합니다. "
+            "예산 확대보다는 전환 과정과 랜딩페이지를 먼저 점검하는 것이 우선입니다."
+        )
+
+    elif total_cost > 0:
+
+        summary = (
+            f"현재 광고비 {total_cost:,.0f}원이 집행되고 있습니다. "
+            "아직 클릭 및 전환 데이터가 충분하지 않기 때문에 "
+            "추가 데이터를 확보하면서 소재와 타겟 반응을 확인하는 단계입니다."
+        )
+
+    else:
+
+        summary = (
+            "현재 광고 집행 데이터가 없어 "
+            "구체적인 성과 진단이 어렵습니다."
+        )
 
     return {
-        "success": True,
-        "message": "API 수신 완료",
-        "daily": daily_df,
-        "campaign": campaign_df,
-        "campaigns": campaigns,
-        "account_raw": account_raw,
-        "today_raw": today_raw
+        "summary": summary,
+        "diagnosis": diagnosis,
+        "improvements": improvements
     }
 
 
@@ -1196,7 +1425,9 @@ def load_kakao_data(
 
 with st.sidebar:
 
-    st.markdown("## 📊 광고 성과 대시보드")
+    st.markdown(
+        "## 📊 광고 성과 대시보드"
+    )
 
     advertiser_name = st.selectbox(
         "광고주",
@@ -1242,7 +1473,7 @@ with st.sidebar:
 # ============================================================
 
 if refresh:
-    st.cache_data.clear()
+
     st.rerun()
 
 
@@ -1270,11 +1501,11 @@ if not KAKAO_BUSINESS_TOKEN:
         """
         카카오 비즈니스 토큰이 없습니다.
 
-        Streamlit Secrets에 아래와 같이 실제 토큰을 입력하세요.
+        Streamlit Secrets에서
 
-        `KAKAO_BUSINESS_TOKEN = "실제 비즈니스 토큰"`
+        `KAKAO_BUSINESS_TOKEN`
 
-        토큰 문자열 자체를 코드에 직접 넣지는 마세요.
+        항목을 확인해주세요.
         """
     )
 
@@ -1289,7 +1520,7 @@ with st.spinner(
     "카카오 광고 데이터를 불러오는 중입니다..."
 ):
 
-    result = load_kakao_data(
+    daily_df = load_kakao_data(
         ad_account_id,
         selected_year,
         selected_month
@@ -1300,56 +1531,33 @@ with st.spinner(
 # API 상태
 # ============================================================
 
-if result["success"]:
-
-    st.markdown(
-        '<div class="status-ok">'
-        '● 카카오 API 연결 및 수신 성공'
-        '</div>',
-        unsafe_allow_html=True
-    )
-
-else:
-
-    st.markdown(
-        '<div class="status-error">'
-        '● 카카오 API 데이터 수신 실패'
-        '</div>',
-        unsafe_allow_html=True
-    )
-
-    st.error(
-        result.get(
-            "message",
-            "알 수 없는 오류"
-        )
-    )
-
-    st.stop()
-
-
-daily_df = result["daily"]
-campaign_df = result["campaign"]
-campaigns = result["campaigns"]
+st.markdown(
+    '<div class="status-ok">'
+    '● 카카오 광고 데이터 정상 수신'
+    '</div>',
+    unsafe_allow_html=True
+)
 
 
 # ============================================================
-# KPI
+# KPI 계산
 # ============================================================
 
-if daily_df.empty:
+total_cost = float(
+    daily_df["cost"].sum()
+)
 
-    total_cost = 0
-    total_imp = 0
-    total_click = 0
-    total_signup = 0
+total_imp = int(
+    daily_df["imp"].sum()
+)
 
-else:
+total_click = int(
+    daily_df["click"].sum()
+)
 
-    total_cost = daily_df["cost"].sum()
-    total_imp = daily_df["imp"].sum()
-    total_click = daily_df["click"].sum()
-    total_signup = daily_df["signup_7d"].sum()
+total_signup = int(
+    daily_df["signup_7d"].sum()
+)
 
 
 if total_imp > 0:
@@ -1377,77 +1585,125 @@ else:
     cpa = 0
 
 
-st.markdown("### 📌 주요 성과")
+# ============================================================
+# KPI
+# ============================================================
+
+st.markdown(
+    "### 📌 주요 성과"
+)
 
 k1, k2, k3, k4, k5 = st.columns(5)
+
 
 with k1:
 
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">광고비</div>
-            <div class="kpi-value">{money(total_cost)}</div>
-            <div class="kpi-sub">선택 기간</div>
+            <div class="kpi-title">
+                광고비
+            </div>
+
+            <div class="kpi-value">
+                {money(total_cost)}
+            </div>
+
+            <div class="kpi-sub">
+                선택 기간
+            </div>
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
 with k2:
 
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">노출</div>
-            <div class="kpi-value">{number(total_imp)}</div>
-            <div class="kpi-sub">Impression</div>
+            <div class="kpi-title">
+                노출
+            </div>
+
+            <div class="kpi-value">
+                {number(total_imp)}
+            </div>
+
+            <div class="kpi-sub">
+                Impression
+            </div>
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
 with k3:
 
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">클릭</div>
-            <div class="kpi-value">{number(total_click)}</div>
-            <div class="kpi-sub">Click</div>
+            <div class="kpi-title">
+                클릭
+            </div>
+
+            <div class="kpi-value">
+                {number(total_click)}
+            </div>
+
+            <div class="kpi-sub">
+                Click
+            </div>
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
 with k4:
 
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">서비스 신청 (7일)</div>
-            <div class="kpi-value">{number(total_signup)}</div>
-            <div class="kpi-sub">conv_signup_7d</div>
+            <div class="kpi-title">
+                서비스 신청 (7일)
+            </div>
+
+            <div class="kpi-value">
+                {number(total_signup)}
+            </div>
+
+            <div class="kpi-sub">
+                Kakao 전환
+            </div>
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
 with k5:
 
     st.markdown(
         f"""
         <div class="kpi-card">
-            <div class="kpi-title">CPA</div>
-            <div class="kpi-value">{money(cpa)}</div>
-            <div class="kpi-sub">광고비 ÷ 서비스 신청</div>
+            <div class="kpi-title">
+                CPA
+            </div>
+
+            <div class="kpi-value">
+                {money(cpa)}
+            </div>
+
+            <div class="kpi-sub">
+                광고비 ÷ 서비스 신청
+            </div>
         </div>
         """,
         unsafe_allow_html=True
     )
-
-
-st.write("")
 
 
 # ============================================================
@@ -1459,19 +1715,28 @@ if (
     and selected_month == current_date.month
 ):
 
-    today_row = daily_df[
+    today_rows = daily_df[
         daily_df["date"].dt.date
         == current_date
     ]
 
-    if not today_row.empty:
+    if not today_rows.empty:
 
-        today_cost = today_row["cost"].sum()
-        today_imp = today_row["imp"].sum()
-        today_click = today_row["click"].sum()
-        today_signup = today_row[
-            "signup_7d"
-        ].sum()
+        today_cost = float(
+            today_rows["cost"].sum()
+        )
+
+        today_imp = int(
+            today_rows["imp"].sum()
+        )
+
+        today_click = int(
+            today_rows["click"].sum()
+        )
+
+        today_signup = int(
+            today_rows["signup_7d"].sum()
+        )
 
     else:
 
@@ -1492,56 +1757,65 @@ if (
 
         today_ctr = 0
 
-    st.markdown("### 🔴 오늘 실시간 데이터")
+    st.markdown(
+        "### 🔴 오늘 실시간 데이터"
+    )
 
     t1, t2, t3, t4, t5 = st.columns(5)
 
     with t1:
+
         st.metric(
             "오늘 광고비",
             money(today_cost)
         )
 
     with t2:
+
         st.metric(
             "오늘 노출",
             number(today_imp)
         )
 
     with t3:
+
         st.metric(
             "오늘 클릭",
             number(today_click)
         )
 
     with t4:
+
         st.metric(
             "오늘 CTR",
             percent(today_ctr)
         )
 
     with t5:
+
         st.metric(
             "오늘 서비스 신청",
             number(today_signup)
         )
 
     st.caption(
-        "※ 오늘 데이터는 카카오 API의 datePreset=TODAY 기준입니다. "
-        "카카오 보고서는 당일 진행 중인 데이터이므로 이후 값이 변동될 수 있습니다."
+        "※ 오늘 데이터는 카카오의 TODAY 보고서 기준이며 "
+        "당일 진행 상황에 따라 이후 수치가 변동될 수 있습니다."
     )
 
 
 # ============================================================
-# 일자별
+# 일자별 성과
 # ============================================================
 
-st.markdown("### 📅 일자별 성과")
+st.markdown(
+    "### 📅 일자별 성과"
+)
 
 if daily_df.empty:
 
     st.info(
-        "선택한 기간에 API 데이터가 없습니다."
+        "선택한 기간에 데이터가 없습니다."
     )
 
 else:
@@ -1597,326 +1871,155 @@ else:
 
 
 # ============================================================
-# 캠페인별
+# AI 마케팅 진단
 # ============================================================
 
-st.markdown("### 📢 캠페인별 성과")
+st.markdown(
+    "### 🤖 AI 마케팅 진단"
+)
 
-if campaign_df.empty:
-
-    st.info(
-        "캠페인별 보고서 데이터가 없습니다."
-    )
-
-else:
-
-    display_campaign = campaign_df.copy()
-
-    display_campaign["광고비"] = (
-        display_campaign["cost"]
-        .apply(money)
-    )
-
-    display_campaign["노출"] = (
-        display_campaign["imp"]
-        .apply(number)
-    )
-
-    display_campaign["클릭"] = (
-        display_campaign["click"]
-        .apply(number)
-    )
-
-    display_campaign["CTR"] = (
-        display_campaign["ctr"]
-        .apply(percent)
-    )
-
-    display_campaign["서비스 신청(1일)"] = (
-        display_campaign["signup_1d"]
-        .apply(number)
-    )
-
-    display_campaign["서비스 신청(7일)"] = (
-        display_campaign["signup_7d"]
-        .apply(number)
-    )
-
-    display_campaign = display_campaign[
-        [
-            "campaign_name",
-            "광고비",
-            "노출",
-            "클릭",
-            "CTR",
-            "서비스 신청(1일)",
-            "서비스 신청(7일)"
-        ]
-    ]
-
-    display_campaign = display_campaign.rename(
-        columns={
-            "campaign_name": "캠페인"
-        }
-    )
-
-    st.dataframe(
-        display_campaign,
-        use_container_width=True,
-        hide_index=True
-    )
+ai_result = generate_marketing_diagnosis(
+    daily_df,
+    current_date
+)
 
 
 # ============================================================
-# API 데이터 확인
+# 종합 진단
 # ============================================================
 
-st.markdown("### 🔎 API 데이터 확인")
+st.markdown(
+    f"""
+    <div class="diagnosis-card">
 
-with st.expander(
-    "API에서 실제로 받은 데이터 확인",
-    expanded=False
-):
+        <div class="diagnosis-title">
+            📊 종합 진단
+        </div>
 
-    st.write(
-        f"캠페인 수: **{len(campaigns)}개**"
-    )
+        <div class="diagnosis-text">
+            {ai_result["summary"]}
+        </div>
 
-    if campaigns:
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-        campaign_list_df = pd.DataFrame([
-            {
-                "campaign_id": x["campaign_id"],
-                "campaign_name": x["campaign_name"]
-            }
-            for x in campaigns
-        ])
 
-        st.dataframe(
-            campaign_list_df,
-            use_container_width=True,
-            hide_index=True
+# ============================================================
+# 세부 진단
+# ============================================================
+
+if ai_result["diagnosis"]:
+
+    for item in ai_result["diagnosis"]:
+
+        if item["level"] == "high":
+
+            icon = "🔴"
+            priority_class = "priority-high"
+            priority_text = "우선 개선"
+
+        elif item["level"] == "medium":
+
+            icon = "🟠"
+            priority_class = "priority-medium"
+            priority_text = "개선 검토"
+
+        else:
+
+            icon = "🟢"
+            priority_class = "priority-good"
+            priority_text = "양호"
+
+        st.markdown(
+            f"""
+            <div class="diagnosis-card">
+
+                <div class="diagnosis-title">
+
+                    {icon}
+                    {item["title"]}
+
+                    <span class="{priority_class}"
+                          style="font-size:12px; margin-left:8px;">
+                        {priority_text}
+                    </span>
+
+                </div>
+
+                <div class="diagnosis-text">
+                    {item["text"]}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
-    st.write(
-        f"일자별 데이터 행 수: **{len(daily_df)}**"
-    )
-
-    st.write(
-        f"캠페인 데이터 행 수: **{len(campaign_df)}**"
-    )
-
 
 # ============================================================
-# API 원문 응답
+# 개선 방향
 # ============================================================
 
-with st.expander(
-    "🧪 카카오 API 원문 응답 보기",
-    expanded=False
-):
+st.markdown(
+    "### 🚀 개선 방향"
+)
 
-    if not st.session_state.kakao_raw:
+if ai_result["improvements"]:
 
-        st.warning(
-            "API 원문 응답이 없습니다."
-        )
-
-    else:
-
-        for i, item in enumerate(
-            st.session_state.kakao_raw,
-            start=1
-        ):
-
-            st.markdown(
-                f"#### {i}. {item['label']}"
-            )
-
-            st.write(
-                f"HTTP Status: `{item['status']}`"
-            )
-
-            st.code(
-                json.dumps(
-                    item["response"],
-                    ensure_ascii=False,
-                    indent=2
-                ),
-                language="json"
-            )
-
-
-# ============================================================
-# API 요청 기록
-# ============================================================
-
-with st.expander(
-    "📡 API 요청 기록",
-    expanded=False
-):
-
-    if not st.session_state.kakao_logs:
-
-        st.info(
-            "API 요청 기록이 없습니다."
-        )
-
-    else:
-
-        for log in st.session_state.kakao_logs:
-
-            st.markdown(
-                f"**{log['시간']} / {log['구분']}**"
-            )
-
-            st.write(
-                f"HTTP: `{log.get('HTTP')}`"
-            )
-
-            st.code(
-                str(log.get("URL"))
-            )
-
-            st.json(
-                log.get("파라미터")
-            )
-
-
-# ============================================================
-# API 오류
-# ============================================================
-
-if st.session_state.kakao_errors:
-
-    with st.expander(
-        "⚠️ API 오류 상세",
-        expanded=True
+    for index, item in enumerate(
+        ai_result["improvements"],
+        start=1
     ):
 
-        for error in st.session_state.kakao_errors:
+        if item["level"] == "high":
 
-            st.error(
-                f"{error['label']} "
-                f"/ HTTP {error['status']}"
-            )
+            icon = "🔴"
+            priority = "1순위"
 
-            st.code(
-                json.dumps(
-                    error["response"],
-                    ensure_ascii=False,
-                    indent=2
-                )
-            )
+        elif item["level"] == "medium":
 
+            icon = "🟠"
+            priority = "2순위"
 
-# ============================================================
-# 전환 기준
-# ============================================================
+        else:
 
-with st.expander(
-    "ℹ️ 서비스 신청 집계 기준",
-    expanded=False
-):
+            icon = "🟢"
+            priority = "유지"
 
-    st.markdown(
-        """
-        ### 서비스 신청 수량
+        st.markdown(
+            f"""
+            <div class="improvement-card">
 
-        카카오모먼트 API의
+                <div class="diagnosis-title">
 
-        **`conv_signup_7d`**
+                    {icon}
+                    {priority} · {item["title"]}
 
-        지표를 사용합니다.
+                </div>
 
-        즉, 카카오 광고 관리자에서 표시되는
+                <div class="diagnosis-text">
+                    {item["text"]}
+                </div>
 
-        **서비스 신청 (7일)**
-
-        값을 기준으로 집계합니다.
-
-        ### 주의사항
-
-        서비스 신청(7일)은 광고 클릭 이후 최대 7일의
-        어트리뷰션 기간이 적용되기 때문에 과거 날짜의
-        전환수가 이후 변경될 수 있습니다.
-
-        따라서 광고비/노출/클릭과 달리
-        서비스 신청 수량은 하루가 지난 뒤에도
-        숫자가 증가할 수 있습니다.
-        """
-    )
-
-
-# ============================================================
-# AI 진단
-# ============================================================
-
-st.markdown("### 🤖 광고 성과 간단 진단")
-
-if daily_df.empty:
-
-    st.info(
-        "진단할 데이터가 없습니다."
-    )
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 else:
 
-    max_cost_row = daily_df.loc[
-        daily_df["cost"].idxmax()
-    ]
-
-    max_click_row = daily_df.loc[
-        daily_df["click"].idxmax()
-    ]
-
-    max_signup_row = daily_df.loc[
-        daily_df["signup_7d"].idxmax()
-    ]
-
-    diagnosis = []
-
-    if total_signup > 0:
-
-        diagnosis.append(
-            f"선택 기간 서비스 신청(7일)은 "
-            f"총 {total_signup:,.0f}건입니다."
-        )
-
-        diagnosis.append(
-            f"평균 서비스 신청당 광고비는 "
-            f"{total_cost / total_signup:,.0f}원입니다."
-        )
-
-    else:
-
-        diagnosis.append(
-            "선택 기간 서비스 신청(7일)이 "
-            "현재 0건으로 집계되었습니다."
-        )
-
-    diagnosis.append(
-        f"광고비가 가장 많이 발생한 날짜는 "
-        f"{max_cost_row['date'].strftime('%Y-%m-%d')}이며 "
-        f"{max_cost_row['cost']:,.0f}원입니다."
+    st.info(
+        "현재 데이터를 기준으로 특별한 개선 사항이 없습니다."
     )
 
-    diagnosis.append(
-        f"클릭이 가장 많았던 날짜는 "
-        f"{max_click_row['date'].strftime('%Y-%m-%d')}이며 "
-        f"{max_click_row['click']:,.0f}회입니다."
-    )
 
-    if max_signup_row["signup_7d"] > 0:
+# ============================================================
+# 마지막 안내
+# ============================================================
 
-        diagnosis.append(
-            f"서비스 신청이 가장 많았던 날짜는 "
-            f"{max_signup_row['date'].strftime('%Y-%m-%d')}이며 "
-            f"{max_signup_row['signup_7d']:,.0f}건입니다."
-        )
-
-    for item in diagnosis:
-
-        st.write(
-            "• " + item
-        )
+st.caption(
+    "※ 서비스 신청(7일)은 카카오모먼트 전환 어트리뷰션 기준으로 "
+    "과거 날짜의 수치가 이후 변경될 수 있습니다."
+)
