@@ -77,25 +77,22 @@ def fetch_naver_adgroups(customer_id):
 
 
 # ==========================================
-# 3. 브랜드별 안정적이고 일관된 성과 데이터 연동 함수
+# 3. 브랜드별 고정 성과 데이터 연동 함수
 # ==========================================
 @st.cache_data(ttl=300)
 def fetch_kakao_realtime_data(ad_account_id):
-  """선택된 브랜드(광고주 ID)별로 고유하고 일관된 성과 데이터를 반환합니다."""
   headers = {
       "Authorization": f"Bearer {KAKAO_BUSINESS_TOKEN}",
       "Content-Type": "application/json",
   }
   try:
-    # API 연결 시도 (실제 상태 점검용)
     url_groups = f"https://apis.moment.kakao.com/openapi/v4/adGroups?adAccountId={ad_account_id}"
     requests.get(url_groups, headers=headers, timeout=3)
   except Exception:
     pass
 
-  # 브랜드별 고정 성과 프로필 (값이 튀지 않고 일정하게 유지됨)
   brand_profiles = {
-      "558725": [  # asap-ad (카카오)
+      "558725": [  # asap-ad
           {
               "그룹명": "asap-ad 메인 디스플레이 캠페인",
               "상태": "노출중",
@@ -117,7 +114,7 @@ def fetch_kakao_realtime_data(ad_account_id):
               "ROAS": "410.2%",
           },
       ],
-      "987505": [  # GHB (카카오)
+      "987505": [  # GHB
           {
               "그룹명": "GHB 브랜드 전환 리타겟팅",
               "상태": "노출중",
@@ -162,7 +159,7 @@ def fetch_kakao_realtime_data(ad_account_id):
 # 4. AI 진단 로직 함수
 # ==========================================
 def generate_ai_diagnosis(channel, advertiser, df_groups):
-  diagnosis_dict = {
+  return {
       "status_msg": (
           f"현재 **[{channel}]** 채널에서 **{advertiser}**의 광고가"
           " 정상적으로 집행 중이며 안정적인 성과를 기록하고 있습니다."
@@ -180,7 +177,6 @@ def generate_ai_diagnosis(channel, advertiser, df_groups):
           " 테스트해 보세요."
       ),
   }
-  return diagnosis_dict
 
 
 # ==========================================
@@ -395,39 +391,107 @@ with section_col2:
   )
 
 
-def get_daily_report_data(month_str, ad_id):
-  month_num = int(month_str.replace("월", ""))
-  current_year = datetime.now().year
-  current_date = datetime.now().date()
+def get_fixed_daily_report(ad_id):
+  """광고주별로 완전히 고정된 5일간의 상세 성과 리포트를 반환합니다 (값이 흔들리지 않음)."""
+  if str(ad_id) == "987505":
+    return pd.DataFrame([
+        {
+            "일자": "2026-10-01",
+            "총비용": "125,000원",
+            "노출": "32,400",
+            "클릭수": "980",
+            "CTR": "3.02%",
+            "전환수": "22건",
+            "ROAS": "430.0%",
+        },
+        {
+            "일자": "2026-10-02",
+            "총비용": "134,000원",
+            "노출": "35,100",
+            "클릭수": "1,050",
+            "CTR": "2.99%",
+            "전환수": "25건",
+            "ROAS": "440.0%",
+        },
+        {
+            "일자": "2026-10-03",
+            "총비용": "118,000원",
+            "노출": "30,800",
+            "클릭수": "920",
+            "CTR": "2.98%",
+            "전환수": "20건",
+            "ROAS": "425.0%",
+        },
+        {
+            "일자": "2026-10-04",
+            "총비용": "142,000원",
+            "노출": "37,500",
+            "클릭수": "1,140",
+            "CTR": "3.04%",
+            "전환수": "28건",
+            "ROAS": "450.0%",
+        },
+        {
+            "일자": "2026-10-05",
+            "총비용": "124,900원",
+            "노출": "32,700",
+            "클릭수": "980",
+            "CTR": "2.99%",
+            "전환수": "24건",
+            "ROAS": "438.0%",
+        },
+    ])
+  else:
+    return pd.DataFrame([
+        {
+            "일자": "2026-10-01",
+            "총비용": "45,200원",
+            "노출": "12,400",
+            "클릭수": "350",
+            "CTR": "2.82%",
+            "전환수": "9건",
+            "ROAS": "380.0%",
+        },
+        {
+            "일자": "2026-10-02",
+            "총비용": "48,000원",
+            "노출": "13,100",
+            "클릭수": "370",
+            "CTR": "2.82%",
+            "전환수": "10건",
+            "ROAS": "385.0%",
+        },
+        {
+            "일자": "2026-10-03",
+            "총비용": "42,000원",
+            "노출": "11,500",
+            "클릭수": "320",
+            "CTR": "2.78%",
+            "전환수": "8건",
+            "ROAS": "375.0%",
+        },
+        {
+            "일자": "2026-10-04",
+            "총비용": "52,500원",
+            "노출": "14,300",
+            "클릭수": "410",
+            "CTR": "2.86%",
+            "전환수": "12건",
+            "ROAS": "392.0%",
+        },
+        {
+            "일자": "2026-10-05",
+            "총비용": "53,000원",
+            "노출": "14,500",
+            "클릭수": "415",
+            "CTR": "2.86%",
+            "전환수": "12건",
+            "ROAS": "390.0%",
+        },
+    ])
 
-  last_day = (
-      28 if month_num == 2 else (30 if month_num in [4, 6, 9, 11] else 31)
-  )
-  dates = [
-      datetime(current_year, month_num, day).date() for day in range(1, last_day + 1)
-  ]
 
-  # 브랜드별 일자별 증가 스텝 고정
-  step_val = 8000 if str(ad_id) == "987505" else 5140
-
-  data = []
-  for i, d in enumerate(dates):
-    if d > current_date:
-      break
-
-    data.append({
-        "일자": d.strftime("%Y-%m-%d"),
-        "총비용": f"{(i + 1) * step_val:,}원",
-        "노출": f"{(i + 1) * 1500:,}",
-        "클릭수": f"{(i + 1) * 45:,}",
-        "CTR": "2.80%",
-        "전환수": f"{(i % 3) + 1}건",
-        "ROAS": "390.0%",
-    })
-  return pd.DataFrame(data)
-
-
-df_daily = get_daily_report_data(selected_month, selected_id)
+df_daily = get_fixed_daily_report(selected_id)
 st.dataframe(df_daily, hide_index=True, use_container_width=True, height=300)
 
 st.markdown("---")
