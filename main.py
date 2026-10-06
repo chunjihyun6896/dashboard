@@ -32,7 +32,10 @@ channel_name = st.session_state.selected_channel
 # ==========================================
 # 2. API 인증 정보 설정 (카카오 & 네이버)
 # ==========================================
-KAKAO_BUSINESS_TOKEN = "6VIMZlJwTHFHJIQNMsd2cbXEUGb1svcsAAAAAwoXNVcAAAGhD2FPVVv0-avl6D9k"
+# 새로 발급받은 유효한 카카오 액세스 토큰 반영 완료
+KAKAO_BUSINESS_TOKEN = (
+    "nK-BQVCgfJfwwegxAfG460aTIAsMsassuugZM2CSaQWdDPwkKnWLHAAAAAQKDQ1fAAABoQ-4r-iBPKUF0hG4dQ"
+)
 
 NAVER_ACCESS_LICENSE = (
     "0100000000d6006534e1b94c00ea1af84cba8177cfdb1b63426ac5ccbd6b1a0065232175e8"
@@ -295,7 +298,7 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 7. 상단 타이틀 및 광고주 선택 리스트 (리만 계정 추가)
+# 7. 상단 타이틀 및 광고주 선택 리스트 (리만 계정 포함)
 # ==========================================
 header_col1, header_col2 = st.columns([2, 1])
 
