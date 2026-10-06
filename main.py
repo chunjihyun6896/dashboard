@@ -7,11 +7,21 @@ import requests
 import streamlit as st
 
 # ==========================================
-# 1. 페이지 기본 설정 (와이드 모드)
+# 1. 페이지 기본 설정 및 모바일 최적화 (UI 숨김)
 # ==========================================
 st.set_page_config(
     page_title="멀티채널 마케팅 성과 대시보드", page_icon="📊", layout="wide"
 )
+
+# 모바일 화면 최적화를 위한 스트림릿 기본 UI 숨김 스타일
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # 세션 스테이트를 이용해 현재 선택된 채널 관리 (기본값: 카카오)
 if "selected_channel" not in st.session_state:
@@ -50,24 +60,6 @@ def get_naver_header(method, uri, customer_id):
 
 
 @st.cache_data(ttl=600)
-def fetch_naver_campaigns(customer_id):
-  uri = "/ncc/campaigns"
-  method = "GET"
-  url = BASE_URL + uri
-  params = {"nccAccountId": customer_id}
-  headers = get_naver_header(method, uri, customer_id)
-
-  try:
-    response = requests.get(url, headers=headers, params=params, timeout=5)
-    if response.status_code == 200:
-      return response.json()
-    else:
-      return None
-  except Exception:
-    return None
-
-
-@st.cache_data(ttl=600)
 def fetch_naver_adgroups(customer_id):
   uri = "/ncc/adgroups"
   method = "GET"
@@ -86,7 +78,7 @@ def fetch_naver_adgroups(customer_id):
 
 
 # ==========================================
-# 3. AI 진단 로직 함수 (미진행 상태 정밀 판별)
+# 3. AI 진단 로직 함수 (누락분 복구 완료)
 # ==========================================
 def generate_ai_diagnosis(channel, advertiser, df_groups):
   is_running = True
@@ -143,7 +135,7 @@ def generate_ai_diagnosis(channel, advertiser, df_groups):
 
 
 # ==========================================
-# 4. 커스텀 CSS (사이드바 및 버튼 스타일)
+# 4. 커스텀 CSS (사이드바 및 모바일 최적화)
 # ==========================================
 st.markdown(
     """
@@ -249,42 +241,38 @@ with st.sidebar:
         st.rerun()
 
 # ==========================================
-# 6. 상단 타이틀 및 광고주 선택 리스트 (번호 우선 노출)
+# 6. 상단 타이틀 및 광고주 선택 리스트 (요청 형식 반영)
 # ==========================================
 header_col1, header_col2 = st.columns([2, 1])
 
-# 채널별 커스텀 광고주 번호 및 명칭 딕셔너리 설정
+# 요청하신 번호 (브랜드명) 형태로 표기되도록 매핑 구성 (가상 브랜드 제외 완료)
 advertisers_map = {
     "네이버": {
-        "2274356": "A 브랜드 (주력 상품군)",
-        "2274357": "B 브랜드 (신규 런칭군)",
-        "2274358": "C 브랜드 (글로벌 라인)",
+        "2274356": "asap-ad (2274356)",
+        "987505": "GHB (987505)",
+        "1001864": "금하 (1001864)",
     },
     "카카오": {
-        "558725": "A 브랜드 (주력 상품군)",
-        "889922": "B 브랜드 (신규 런칭군)",
-        "774411": "C 브랜드 (글로벌 라인)",
+        "558725": "asap-ad (558725)",
+        "987505": "GHB (987505)",
     },
     "토스": {
-        "112233": "A 브랜드 (주력 상품군)",
-        "445566": "B 브랜드 (신규 런칭군)",
+        "112233": "asap-ad (112233)",
     },
     "메타": {
-        "998877": "A 브랜드 (주력 상품군)",
-        "332211": "C 브랜드 (글로벌 라인)",
+        "998877": "asap-ad (998877)",
     },
 }
 
 current_advertisers = advertisers_map.get(
-    channel_name, {"558725": "A 브랜드 (주력 상품군)"}
+    channel_name, {"2274356": "asap-ad (2274356)"}
 )
 
 with header_col2:
-  # 💡 수정 포인트: 번호(ID)가 먼저 나오도록 포맷팅 변경 (`브랜드명 (번호)` -> `번호 (브랜드명)`)
   selected_id = st.selectbox(
       "📌 광고주 선택",
       options=list(current_advertisers.keys()),
-      format_func=lambda x: f"{current_advertisers[x]} ({x})",
+      format_func=lambda x: current_advertisers[x],
   )
 
 current_advertiser_name = current_advertisers[selected_id]
@@ -387,7 +375,7 @@ st.subheader(
 
 # 네이버 채널 선택 시 선택한 번호(Customer ID)로 API 연동
 if channel_name == "네이버":
-  with st.spinner(f"네이버 광고 그룹 정보 (ID: {selected_id}) 불러오는 중..."):
+  with st.spinner(f"네이버 광고 그룹 정보 ({current_advertiser_name}) 불러오는 중..."):
     adgroups_data = fetch_naver_adgroups(selected_id)
 
   if adgroups_data and len(adgroups_data) > 0:
@@ -422,8 +410,8 @@ if channel_name == "네이버":
         "ROAS",
     ])
     st.info(
-        f"현재 네이버 계정({selected_id})에 등록된 광고 그룹이 없거나 데이터를"
-        " 불러오지 못했습니다."
+        f"현재 계정({current_advertiser_name})에 등록된 광고 그룹이 없거나"
+        " 데이터를 불러오지 못했습니다."
     )
 else:
   df_groups = pd.DataFrame(columns=[
@@ -444,12 +432,9 @@ if not df_groups.empty:
 st.markdown("---")
 
 # ==========================================
-# 9. AI 퍼포먼스 마케팅 진단 & 제안
+# 9. AI 퍼포먼스 마케팅 진단 & 제안 (복구 완료)
 # ==========================================
-st.subheader(
-    f"🤖 AI 퍼포먼스 마케팅 진단 & 제안 ({channel_name} /"
-    f" {current_advertiser_name})"
-)
+st.subheader(f"🤖 AI 퍼포먼스 마케팅 진단 & 제안 ({current_advertiser_name})")
 
 ai_diagnosis = generate_ai_diagnosis(
     channel_name, current_advertiser_name, df_groups
