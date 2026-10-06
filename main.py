@@ -132,11 +132,11 @@ ADVERTISERS = {
         "ad_account_id": "995724"
     },
 
-    "광고주 2": {
+    "구피디": {
         "ad_account_id": "558725"
     },
 
-    "광고주 3": {
+    "GHB": {
         "ad_account_id": "987505"
     }
 }
