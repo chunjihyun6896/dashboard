@@ -1874,41 +1874,26 @@ else:
 # AI 마케팅 진단
 # ============================================================
 
-st.markdown(
-    "### 🤖 AI 마케팅 진단"
-)
+st.markdown("### 🤖 마케팅 진단")
 
 ai_result = generate_marketing_diagnosis(
     daily_df,
     current_date
 )
 
-
-# ============================================================
+# ------------------------------------------------------------
 # 종합 진단
-# ============================================================
+# ------------------------------------------------------------
 
-st.markdown(
-    f"""
-    <div class="diagnosis-card">
-
-        <div class="diagnosis-title">
-            📊 종합 진단
-        </div>
-
-        <div class="diagnosis-text">
-            {ai_result["summary"]}
-        </div>
-
-    </div>
-    """,
-    unsafe_allow_html=True
+st.info(
+    f"**종합 진단**  \n"
+    f"{ai_result['summary']}"
 )
 
 
-# ============================================================
+# ------------------------------------------------------------
 # 세부 진단
-# ============================================================
+# ------------------------------------------------------------
 
 if ai_result["diagnosis"]:
 
@@ -1916,55 +1901,31 @@ if ai_result["diagnosis"]:
 
         if item["level"] == "high":
 
-            icon = "🔴"
-            priority_class = "priority-high"
-            priority_text = "우선 개선"
+            st.warning(
+                f"🔴 **{item['title']}**  \n"
+                f"{item['text']}"
+            )
 
         elif item["level"] == "medium":
 
-            icon = "🟠"
-            priority_class = "priority-medium"
-            priority_text = "개선 검토"
+            st.info(
+                f"🟠 **{item['title']}**  \n"
+                f"{item['text']}"
+            )
 
         else:
 
-            icon = "🟢"
-            priority_class = "priority-good"
-            priority_text = "양호"
-
-        st.markdown(
-            f"""
-            <div class="diagnosis-card">
-
-                <div class="diagnosis-title">
-
-                    {icon}
-                    {item["title"]}
-
-                    <span class="{priority_class}"
-                          style="font-size:12px; margin-left:8px;">
-                        {priority_text}
-                    </span>
-
-                </div>
-
-                <div class="diagnosis-text">
-                    {item["text"]}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            st.success(
+                f"🟢 **{item['title']}**  \n"
+                f"{item['text']}"
+            )
 
 
 # ============================================================
 # 개선 방향
 # ============================================================
 
-st.markdown(
-    "### 🚀 개선 방향"
-)
+st.markdown("### 🚀 개선 방향")
 
 if ai_result["improvements"]:
 
@@ -1975,51 +1936,31 @@ if ai_result["improvements"]:
 
         if item["level"] == "high":
 
-            icon = "🔴"
-            priority = "1순위"
+            st.warning(
+                f"**{index}순위 · {item['title']}**  \n"
+                f"{item['text']}"
+            )
 
         elif item["level"] == "medium":
 
-            icon = "🟠"
-            priority = "2순위"
+            st.info(
+                f"**{index}순위 · {item['title']}**  \n"
+                f"{item['text']}"
+            )
 
         else:
 
-            icon = "🟢"
-            priority = "유지"
-
-        st.markdown(
-            f"""
-            <div class="improvement-card">
-
-                <div class="diagnosis-title">
-
-                    {icon}
-                    {priority} · {item["title"]}
-
-                </div>
-
-                <div class="diagnosis-text">
-                    {item["text"]}
-                </div>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-else:
-
-    st.info(
-        "현재 데이터를 기준으로 특별한 개선 사항이 없습니다."
-    )
+            st.success(
+                f"**{index}순위 · {item['title']}**  \n"
+                f"{item['text']}"
+            )
 
 
 # ============================================================
-# 마지막 안내
+# 하단 안내
 # ============================================================
 
 st.caption(
-    "※ 서비스 신청(7일)은 카카오모먼트 전환 어트리뷰션 기준으로 "
-    "과거 날짜의 수치가 이후 변경될 수 있습니다."
+    "※ 서비스 신청(7일)은 카카오 전환 어트리뷰션 기준으로 "
+    "이후 수치가 변경될 수 있습니다."
 )
