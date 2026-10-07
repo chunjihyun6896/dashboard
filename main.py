@@ -1620,7 +1620,7 @@ yesterday_row = daily_df[
 
 
 # ------------------------------------------------------------
-# 증감률 계산 함수
+# 증감률 계산
 # ------------------------------------------------------------
 
 def calc_change(today_value, yesterday_value):
@@ -1635,12 +1635,370 @@ def calc_change(today_value, yesterday_value):
     )
 
 
+def delta_percent(value):
+
+    if value is None:
+        return None
+
+    return f"{value:+.1f}% 어제 대비"
+
+
+def delta_ctr(value):
+
+    if value is None:
+        return None
+
+    return f"{value:+.2f}%p 어제 대비"
+
+
+# ============================================================
+# 카드 디자인
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+
+    /* 카드 기본 */
+    div[data-testid="stMetric"] {
+        position: relative;
+        overflow: hidden;
+
+        min-height: 165px;
+        padding: 22px 20px 24px 20px;
+
+        border-radius: 22px;
+
+        border: 1px solid rgba(225, 228, 235, 0.55);
+
+        box-shadow:
+            0 8px 24px rgba(44, 62, 90, 0.055);
+
+        transition:
+            transform 0.20s ease,
+            box-shadow 0.20s ease;
+    }
+
+
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-3px);
+
+        box-shadow:
+            0 13px 30px rgba(44, 62, 90, 0.09);
+    }
+
+
+    /* =========================================
+       카드별 파스텔 컬러
+       ========================================= */
+
+
+    /* 광고비 - 핑크 */
+
+    div[data-testid="column"]:nth-of-type(1)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #fffafa 42%,
+                #fff0f2 100%
+            );
+
+        border-color: #ffe3e6;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(1)
+    div[data-testid="stMetric"]::after {
+        background: #ffdfe3;
+    }
+
+
+    /* 노출 - 블루 */
+
+    div[data-testid="column"]:nth-of-type(2)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #f8fbff 42%,
+                #edf5ff 100%
+            );
+
+        border-color: #dceaff;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(2)
+    div[data-testid="stMetric"]::after {
+        background: #dcecff;
+    }
+
+
+    /* 클릭 - 그린 */
+
+    div[data-testid="column"]:nth-of-type(3)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #f8fdf9 42%,
+                #ecf9f1 100%
+            );
+
+        border-color: #d8f0e1;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(3)
+    div[data-testid="stMetric"]::after {
+        background: #d9f1e1;
+    }
+
+
+    /* CTR - 퍼플 */
+
+    div[data-testid="column"]:nth-of-type(4)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #fbf9ff 42%,
+                #f2edff 100%
+            );
+
+        border-color: #e8dfff;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(4)
+    div[data-testid="stMetric"]::after {
+        background: #e7ddff;
+    }
+
+
+    /* 서비스 신청 - 오렌지 */
+
+    div[data-testid="column"]:nth-of-type(5)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #fffdf8 42%,
+                #fff4df 100%
+            );
+
+        border-color: #f8e7c8;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(5)
+    div[data-testid="stMetric"]::after {
+        background: #ffebc5;
+    }
+
+
+    /* CPA - 민트 */
+
+    div[data-testid="column"]:nth-of-type(6)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #f7fdfb 42%,
+                #e9f9f5 100%
+            );
+
+        border-color: #d4eee8;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(6)
+    div[data-testid="stMetric"]::after {
+        background: #d3f0e9;
+    }
+
+
+    /* =========================================
+       카드 하단 부드러운 물결
+       ========================================= */
+
+    div[data-testid="stMetric"]::after {
+
+        content: "";
+
+        position: absolute;
+
+        width: 135%;
+        height: 80px;
+
+        left: -18%;
+        bottom: -52px;
+
+        border-radius:
+            48% 52% 0 0 /
+            70% 70% 0 0;
+
+        opacity: 0.72;
+
+        transform: rotate(-2deg);
+
+        pointer-events: none;
+
+        z-index: 0;
+    }
+
+
+    div[data-testid="stMetric"]::before {
+
+        content: "";
+
+        position: absolute;
+
+        width: 90%;
+        height: 55px;
+
+        right: -25%;
+        bottom: -39px;
+
+        border-radius: 50%;
+
+        background:
+            rgba(255,255,255,0.48);
+
+        transform: rotate(5deg);
+
+        pointer-events: none;
+
+        z-index: 1;
+    }
+
+
+    /* =========================================
+       카드 제목
+       ========================================= */
+
+    div[data-testid="stMetricLabel"] {
+
+        position: relative;
+
+        z-index: 5;
+
+        font-size: 14px;
+
+        font-weight: 650;
+
+        color: #505a6d;
+
+        margin-bottom: 10px;
+    }
+
+
+    /* =========================================
+       숫자
+       ========================================= */
+
+    div[data-testid="stMetricValue"] {
+
+        position: relative;
+
+        z-index: 5;
+
+        font-size: 29px;
+
+        font-weight: 750;
+
+        color: #172033;
+
+        letter-spacing: -0.7px;
+    }
+
+
+    div[data-testid="stMetricValue"] > div {
+
+        white-space: nowrap;
+    }
+
+
+    /* =========================================
+       어제 대비 배지
+       ========================================= */
+
+    div[data-testid="stMetricDelta"] {
+
+        position: relative;
+
+        z-index: 5;
+
+        width: fit-content;
+
+        margin-top: 12px;
+
+        padding: 5px 10px;
+
+        border-radius: 999px;
+
+        background:
+            rgba(255,255,255,0.75);
+
+        box-shadow:
+            0 2px 8px
+            rgba(30,41,59,0.035);
+
+        font-size: 12px;
+
+        font-weight: 650;
+    }
+
+
+    /* 모바일 */
+
+    @media (max-width: 1000px) {
+
+        div[data-testid="stMetric"] {
+
+            min-height: 145px;
+
+            padding:
+                18px
+                15px
+                20px
+                15px;
+        }
+
+
+        div[data-testid="stMetricValue"] {
+
+            font-size: 23px;
+        }
+
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# 오늘 데이터가 있을 경우
+# ============================================================
+
 if not today_row.empty:
 
-    # ========================================================
-    # 오늘 데이터
-    # ========================================================
-
+    # 오늘
     today_cost = float(
         today_row["cost"].sum()
     )
@@ -1658,29 +2016,18 @@ if not today_row.empty:
     )
 
 
-    if today_imp > 0:
-
-        today_ctr = (
-            today_click
-            / today_imp
-            * 100
-        )
-
-    else:
-
-        today_ctr = 0.0
+    today_ctr = (
+        today_click / today_imp * 100
+        if today_imp > 0
+        else 0.0
+    )
 
 
-    if today_signup > 0:
-
-        today_cpa = (
-            today_cost
-            / today_signup
-        )
-
-    else:
-
-        today_cpa = 0.0
+    today_cpa = (
+        today_cost / today_signup
+        if today_signup > 0
+        else 0.0
+    )
 
 
     # ========================================================
@@ -1705,43 +2052,30 @@ if not today_row.empty:
             yesterday_row["signup_7d"].sum()
         )
 
-
-        if yesterday_imp > 0:
-
-            yesterday_ctr = (
-                yesterday_click
-                / yesterday_imp
-                * 100
-            )
-
-        else:
-
-            yesterday_ctr = 0.0
-
-
-        if yesterday_signup > 0:
-
-            yesterday_cpa = (
-                yesterday_cost
-                / yesterday_signup
-            )
-
-        else:
-
-            yesterday_cpa = 0.0
-
     else:
 
         yesterday_cost = 0.0
         yesterday_imp = 0
         yesterday_click = 0
         yesterday_signup = 0
-        yesterday_ctr = 0.0
-        yesterday_cpa = 0.0
+
+
+    yesterday_ctr = (
+        yesterday_click / yesterday_imp * 100
+        if yesterday_imp > 0
+        else 0.0
+    )
+
+
+    yesterday_cpa = (
+        yesterday_cost / yesterday_signup
+        if yesterday_signup > 0
+        else 0.0
+    )
 
 
     # ========================================================
-    # 어제 대비 증감률
+    # 어제 대비
     # ========================================================
 
     cost_change = calc_change(
@@ -1769,380 +2103,28 @@ if not today_row.empty:
         yesterday_cpa
     )
 
-    # CTR은 % 증감이 아니라 %p 차이
-    if yesterday_imp > 0:
 
-        ctr_change = (
-            today_ctr
-            - yesterday_ctr
-        )
-
-    else:
-
-        ctr_change = None
+    ctr_change = (
+        today_ctr - yesterday_ctr
+        if yesterday_imp > 0
+        else None
+    )
 
 
     # ========================================================
-    # Delta 표시 함수
+    # 6개 카드 생성
     # ========================================================
 
-    def delta_percent(value):
+    col1, col2, col3, col4, col5, col6 = st.columns(
+        6,
+        gap="medium"
+    )
 
-        if value is None:
-            return None
-
-        return f"{value:+.1f}% 어제 대비"
-
-
-    def delta_ctr(value):
-
-        if value is None:
-            return None
-
-        return f"{value:+.2f}%p 어제 대비"
-
-
-  # ========================================================
-# 카드 디자인 - Soft Pastel
-# ========================================================
-
-st.markdown(
-    """
-    <style>
-
-    /* ==============================
-       카드 기본
-       ============================== */
-
-    div[data-testid="stMetric"] {
-        position: relative;
-        overflow: hidden;
-
-        min-height: 170px;
-        padding: 22px 20px 24px 20px;
-
-        border-radius: 20px;
-
-        border: 1px solid rgba(225, 228, 235, 0.55);
-
-        box-shadow:
-            0 8px 24px rgba(44, 62, 90, 0.055);
-
-        transition:
-            transform 0.20s ease,
-            box-shadow 0.20s ease;
-    }
-
-
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-3px);
-
-        box-shadow:
-            0 13px 30px rgba(44, 62, 90, 0.09);
-    }
-
-
-    /* ==============================
-       광고비 - 핑크
-       ============================== */
-
-    div[data-testid="column"]:nth-of-type(1)
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(
-                155deg,
-                #ffffff 0%,
-                #fffafa 40%,
-                #fff0f2 100%
-            );
-
-        border-color: #ffe3e6;
-    }
-
-
-    div[data-testid="column"]:nth-of-type(1)
-    div[data-testid="stMetric"]::after {
-        background: #ffdfe3;
-    }
-
-
-    /* ==============================
-       노출 - 블루
-       ============================== */
-
-    div[data-testid="column"]:nth-of-type(2)
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(
-                155deg,
-                #ffffff 0%,
-                #f8fbff 40%,
-                #edf5ff 100%
-            );
-
-        border-color: #dceaff;
-    }
-
-
-    div[data-testid="column"]:nth-of-type(2)
-    div[data-testid="stMetric"]::after {
-        background: #dcecff;
-    }
-
-
-    /* ==============================
-       클릭 - 그린
-       ============================== */
-
-    div[data-testid="column"]:nth-of-type(3)
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(
-                155deg,
-                #ffffff 0%,
-                #f8fdf9 40%,
-                #ecf9f1 100%
-            );
-
-        border-color: #d8f0e1;
-    }
-
-
-    div[data-testid="column"]:nth-of-type(3)
-    div[data-testid="stMetric"]::after {
-        background: #d9f1e1;
-    }
-
-
-    /* ==============================
-       CTR - 퍼플
-       ============================== */
-
-    div[data-testid="column"]:nth-of-type(4)
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(
-                155deg,
-                #ffffff 0%,
-                #fbf9ff 40%,
-                #f2edff 100%
-            );
-
-        border-color: #e8dfff;
-    }
-
-
-    div[data-testid="column"]:nth-of-type(4)
-    div[data-testid="stMetric"]::after {
-        background: #e7ddff;
-    }
-
-
-    /* ==============================
-       서비스 신청 - 크림/오렌지
-       ============================== */
-
-    div[data-testid="column"]:nth-of-type(5)
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(
-                155deg,
-                #ffffff 0%,
-                #fffdf8 40%,
-                #fff4df 100%
-            );
-
-        border-color: #f8e7c8;
-    }
-
-
-    div[data-testid="column"]:nth-of-type(5)
-    div[data-testid="stMetric"]::after {
-        background: #ffebc5;
-    }
-
-
-    /* ==============================
-       CPA - 민트
-       ============================== */
-
-    div[data-testid="column"]:nth-of-type(6)
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(
-                155deg,
-                #ffffff 0%,
-                #f7fdfb 40%,
-                #e9f9f5 100%
-            );
-
-        border-color: #d4eee8;
-    }
-
-
-    div[data-testid="column"]:nth-of-type(6)
-    div[data-testid="stMetric"]::after {
-        background: #d3f0e9;
-    }
-
-
-    /* ==============================
-       카드 아래 물결 느낌
-       ============================== */
-
-    div[data-testid="stMetric"]::after {
-        content: "";
-
-        position: absolute;
-
-        width: 135%;
-        height: 78px;
-
-        left: -18%;
-        bottom: -50px;
-
-        border-radius: 48% 52% 0 0 / 70% 70% 0 0;
-
-        opacity: 0.72;
-
-        transform: rotate(-2deg);
-
-        pointer-events: none;
-
-        z-index: 0;
-    }
-
-
-    /* 두 번째 부드러운 물결 */
-
-    div[data-testid="stMetric"]::before {
-        content: "";
-
-        position: absolute;
-
-        width: 90%;
-        height: 55px;
-
-        right: -25%;
-        bottom: -38px;
-
-        border-radius: 50%;
-
-        background: rgba(255, 255, 255, 0.45);
-
-        transform: rotate(5deg);
-
-        pointer-events: none;
-
-        z-index: 1;
-    }
-
-
-    /* ==============================
-       제목
-       ============================== */
-
-    div[data-testid="stMetricLabel"] {
-        position: relative;
-        z-index: 5;
-
-        font-size: 14px;
-        font-weight: 650;
-
-        color: #4f596c;
-
-        margin-bottom: 10px;
-    }
-
-
-    /* ==============================
-       숫자
-       ============================== */
-
-    div[data-testid="stMetricValue"] {
-        position: relative;
-        z-index: 5;
-
-        font-size: 29px;
-        font-weight: 750;
-
-        color: #172033;
-
-        letter-spacing: -0.7px;
-    }
-
-
-    div[data-testid="stMetricValue"] > div {
-        white-space: nowrap;
-    }
-
-
-    /* ==============================
-       어제 대비
-       ============================== */
-
-    div[data-testid="stMetricDelta"] {
-        position: relative;
-        z-index: 5;
-
-        width: fit-content;
-
-        margin-top: 12px;
-
-        padding: 5px 10px;
-
-        border-radius: 999px;
-
-        background: rgba(255,255,255,0.70);
-
-        box-shadow:
-            0 2px 8px rgba(30,41,59,0.035);
-
-        font-size: 12px;
-        font-weight: 650;
-    }
-
-
-    /* ==============================
-       카드 간격
-       ============================== */
-
-    div[data-testid="stHorizontalBlock"] {
-        gap: 14px;
-    }
-
-
-    /* ==============================
-       모바일
-       ============================== */
-
-    @media (max-width: 1000px) {
-
-        div[data-testid="stMetric"] {
-            min-height: 145px;
-            padding: 18px 15px 20px 15px;
-        }
-
-        div[data-testid="stMetricValue"] {
-            font-size: 23px;
-        }
-
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-    # --------------------------------------------------------
-    # 광고비
-    # --------------------------------------------------------
 
     with col1:
 
         st.metric(
-            label="💳  오늘 광고비",
+            label="💳 오늘 광고비",
             value=f"{today_cost:,.0f}원",
             delta=delta_percent(
                 cost_change
@@ -2150,14 +2132,10 @@ st.markdown(
         )
 
 
-    # --------------------------------------------------------
-    # 노출
-    # --------------------------------------------------------
-
     with col2:
 
         st.metric(
-            label="👁️  오늘 노출",
+            label="👁️ 오늘 노출",
             value=f"{today_imp:,.0f}",
             delta=delta_percent(
                 imp_change
@@ -2165,14 +2143,10 @@ st.markdown(
         )
 
 
-    # --------------------------------------------------------
-    # 클릭
-    # --------------------------------------------------------
-
     with col3:
 
         st.metric(
-            label="🖱️  오늘 클릭",
+            label="🖱️ 오늘 클릭",
             value=f"{today_click:,.0f}",
             delta=delta_percent(
                 click_change
@@ -2180,14 +2154,10 @@ st.markdown(
         )
 
 
-    # --------------------------------------------------------
-    # CTR
-    # --------------------------------------------------------
-
     with col4:
 
         st.metric(
-            label="📊  오늘 CTR",
+            label="📊 오늘 CTR",
             value=f"{today_ctr:.2f}%",
             delta=delta_ctr(
                 ctr_change
@@ -2195,14 +2165,10 @@ st.markdown(
         )
 
 
-    # --------------------------------------------------------
-    # 서비스 신청
-    # --------------------------------------------------------
-
     with col5:
 
         st.metric(
-            label="👥  오늘 서비스 신청",
+            label="👥 오늘 서비스 신청",
             value=f"{today_signup:,.0f}",
             delta=delta_percent(
                 signup_change
@@ -2210,14 +2176,10 @@ st.markdown(
         )
 
 
-    # --------------------------------------------------------
-    # CPA
-    # --------------------------------------------------------
-
     with col6:
 
         st.metric(
-            label="🎯  오늘 CPA",
+            label="🎯 오늘 CPA",
 
             value=(
                 f"{today_cpa:,.0f}원"
@@ -2227,18 +2189,20 @@ st.markdown(
 
             delta=(
                 delta_percent(cpa_change)
-                if today_signup > 0
+                if (
+                    today_signup > 0
+                    and yesterday_signup > 0
+                )
                 else None
             ),
 
-            # CPA는 내려가는 것이 좋은 것이므로
-            # 일반 지표와 색상 방향 반대로
+            # CPA는 낮아질수록 좋음
             delta_color="inverse"
         )
 
 
     # ========================================================
-    # 실시간 안내
+    # 업데이트 안내
     # ========================================================
 
     st.caption(
