@@ -1602,104 +1602,70 @@ else:
 
 
 
-# ============================================================
-# 오늘 실시간
-# ============================================================
+# =========================
+# 오늘 실시간 데이터
+# =========================
+st.markdown("### 🔴 오늘 실시간 데이터")
 
-if (
-    selected_year == current_date.year
-    and selected_month == current_date.month
-):
+today_row = daily_df[daily_df["date"].dt.date == current_date]
 
-    today_rows = daily_df[
-        daily_df["date"].dt.date
-        == current_date
-    ]
+if not today_row.empty:
+    today_cost = today_row["cost"].sum()
+    today_imp = today_row["imp"].sum()
+    today_click = today_row["click"].sum()
+    today_signup = today_row["signup_7d"].sum()
 
-    if not today_rows.empty:
-
-        today_cost = float(
-            today_rows["cost"].sum()
-        )
-
-        today_imp = int(
-            today_rows["imp"].sum()
-        )
-
-        today_click = int(
-            today_rows["click"].sum()
-        )
-
-        today_signup = int(
-            today_rows["signup_7d"].sum()
-        )
-
-    else:
-
-        today_cost = 0
-        today_imp = 0
-        today_click = 0
-        today_signup = 0
-
-    if today_imp > 0:
-
-        today_ctr = (
-            today_click
-            / today_imp
-            * 100
-        )
-
-    else:
-
-        today_ctr = 0
-
-    st.markdown(
-        "### 🔴 오늘 실시간 데이터"
+    # 오늘 CTR
+    today_ctr = (
+        (today_click / today_imp * 100)
+        if today_imp > 0
+        else 0
     )
 
-    t1, t2, t3, t4, t5 = st.columns(5)
+    # 오늘 CPA
+    today_cpa = (
+        today_cost / today_signup
+        if today_signup > 0
+        else 0
+    )
 
-    with t1:
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
+    with col1:
         st.metric(
             "오늘 광고비",
-            money(today_cost)
+            f"{today_cost:,.0f}원"
         )
 
-    with t2:
-
+    with col2:
         st.metric(
             "오늘 노출",
-            number(today_imp)
+            f"{today_imp:,.0f}"
         )
 
-    with t3:
-
+    with col3:
         st.metric(
             "오늘 클릭",
-            number(today_click)
+            f"{today_click:,.0f}"
         )
 
-    with t4:
-
+    with col4:
         st.metric(
             "오늘 CTR",
-            percent(today_ctr)
+            f"{today_ctr:.2f}%"
         )
 
-    with t5:
-
+    with col5:
         st.metric(
             "오늘 서비스 신청",
-            number(today_signup)
+            f"{today_signup:,.0f}"
         )
 
-    st.caption(
-        "※ 오늘 데이터는 카카오의 TODAY 보고서 기준이며 "
-        "당일 진행 상황에 따라 이후 수치가 변동될 수 있습니다."
-    )
-
-
+    with col6:
+        st.metric(
+            "오늘 CPA",
+            f"{today_cpa:,.0f}원" if today_signup > 0 else "-"
+        )
 # ============================================================
 # 일자별 성과
 # ============================================================
