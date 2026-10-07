@@ -1602,216 +1602,561 @@ else:
 
 
 
-# =========================
+# ============================================================
 # 오늘 실시간 데이터
-# =========================
+# ============================================================
 
 st.markdown("## 🔴 오늘 실시간 데이터")
-st.caption("카카오 광고 실시간 성과")
 
-today_row = daily_df[daily_df["date"].dt.date == current_date]
+today_row = daily_df[
+    daily_df["date"].dt.date == current_date
+]
+
+yesterday_date = current_date - timedelta(days=1)
+
+yesterday_row = daily_df[
+    daily_df["date"].dt.date == yesterday_date
+]
+
+
+# ------------------------------------------------------------
+# 증감률 계산 함수
+# ------------------------------------------------------------
+
+def calc_change(today_value, yesterday_value):
+
+    if yesterday_value is None or yesterday_value == 0:
+        return None
+
+    return (
+        (today_value - yesterday_value)
+        / yesterday_value
+        * 100
+    )
+
 
 if not today_row.empty:
 
-    today_cost = today_row["cost"].sum()
-    today_imp = today_row["imp"].sum()
-    today_click = today_row["click"].sum()
-    today_signup = today_row["signup_7d"].sum()
+    # ========================================================
+    # 오늘 데이터
+    # ========================================================
 
-    # 오늘 CTR
-    today_ctr = (
-        today_click / today_imp * 100
-        if today_imp > 0
-        else 0
+    today_cost = float(
+        today_row["cost"].sum()
     )
 
-    # 오늘 CPA
-    today_cpa = (
-        today_cost / today_signup
-        if today_signup > 0
-        else 0
+    today_imp = int(
+        today_row["imp"].sum()
     )
 
-    # =========================
-    # 실시간 카드 디자인
-    # =========================
-    st.markdown("""
-    <style>
+    today_click = int(
+        today_row["click"].sum()
+    )
 
-    /* 카드 공통 */
-    div[data-testid="stMetric"] {
-        padding: 22px 20px 24px 20px;
-        border-radius: 22px;
-        min-height: 150px;
-
-        border: 1px solid rgba(220, 225, 235, 0.65);
-
-        box-shadow:
-            0 8px 24px rgba(30, 41, 59, 0.06);
-
-        transition:
-            transform 0.20s ease,
-            box-shadow 0.20s ease;
-    }
-
-    /* 마우스 올렸을 때 */
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-3px);
-
-        box-shadow:
-            0 12px 28px rgba(30, 41, 59, 0.10);
-    }
+    today_signup = int(
+        today_row["signup_7d"].sum()
+    )
 
 
-    /* ===================================== */
-    /* 카드별 파스텔 배경 */
-    /* ===================================== */
+    if today_imp > 0:
+
+        today_ctr = (
+            today_click
+            / today_imp
+            * 100
+        )
+
+    else:
+
+        today_ctr = 0.0
 
 
-    /* 1. 광고비 - 연한 핑크 */
-    div[data-testid="column"]:nth-of-type(1)
-    div[data-testid="stMetric"] {
+    if today_signup > 0:
 
-        background:
-            linear-gradient(
-                145deg,
-                #ffffff 0%,
-                #fff4f5 100%
-            );
+        today_cpa = (
+            today_cost
+            / today_signup
+        )
 
-        border-color: #ffe0e3;
-    }
+    else:
+
+        today_cpa = 0.0
 
 
-    /* 2. 노출 - 연한 블루 */
-    div[data-testid="column"]:nth-of-type(2)
-    div[data-testid="stMetric"] {
+    # ========================================================
+    # 어제 데이터
+    # ========================================================
 
-        background:
-            linear-gradient(
-                145deg,
-                #ffffff 0%,
-                #f1f7ff 100%
-            );
+    if not yesterday_row.empty:
 
-        border-color: #dceaff;
-    }
+        yesterday_cost = float(
+            yesterday_row["cost"].sum()
+        )
 
+        yesterday_imp = int(
+            yesterday_row["imp"].sum()
+        )
 
-    /* 3. 클릭 - 연한 그린 */
-    div[data-testid="column"]:nth-of-type(3)
-    div[data-testid="stMetric"] {
+        yesterday_click = int(
+            yesterday_row["click"].sum()
+        )
 
-        background:
-            linear-gradient(
-                145deg,
-                #ffffff 0%,
-                #effbf4 100%
-            );
-
-        border-color: #d7f0e1;
-    }
+        yesterday_signup = int(
+            yesterday_row["signup_7d"].sum()
+        )
 
 
-    /* 4. CTR - 연한 퍼플 */
-    div[data-testid="column"]:nth-of-type(4)
-    div[data-testid="stMetric"] {
+        if yesterday_imp > 0:
 
-        background:
-            linear-gradient(
-                145deg,
-                #ffffff 0%,
-                #f6f2ff 100%
-            );
+            yesterday_ctr = (
+                yesterday_click
+                / yesterday_imp
+                * 100
+            )
 
-        border-color: #e7ddff;
-    }
+        else:
+
+            yesterday_ctr = 0.0
 
 
-    /* 5. 서비스 신청 - 연한 오렌지 */
-    div[data-testid="column"]:nth-of-type(5)
-    div[data-testid="stMetric"] {
+        if yesterday_signup > 0:
 
-        background:
-            linear-gradient(
-                145deg,
-                #ffffff 0%,
-                #fff8eb 100%
-            );
+            yesterday_cpa = (
+                yesterday_cost
+                / yesterday_signup
+            )
 
-        border-color: #f6e4c2;
-    }
+        else:
 
+            yesterday_cpa = 0.0
 
-    /* 6. CPA - 연한 민트 */
-    div[data-testid="column"]:nth-of-type(6)
-    div[data-testid="stMetric"] {
+    else:
 
-        background:
-            linear-gradient(
-                145deg,
-                #ffffff 0%,
-                #eefbf8 100%
-            );
-
-        border-color: #d2eee7;
-    }
+        yesterday_cost = 0.0
+        yesterday_imp = 0
+        yesterday_click = 0
+        yesterday_signup = 0
+        yesterday_ctr = 0.0
+        yesterday_cpa = 0.0
 
 
-    /* ===================================== */
-    /* 카드 제목 */
-    /* ===================================== */
+    # ========================================================
+    # 어제 대비 증감률
+    # ========================================================
 
-    div[data-testid="stMetricLabel"] {
-        font-size: 14px;
-        font-weight: 650;
-        color: #596579;
-        margin-bottom: 14px;
-    }
+    cost_change = calc_change(
+        today_cost,
+        yesterday_cost
+    )
+
+    imp_change = calc_change(
+        today_imp,
+        yesterday_imp
+    )
+
+    click_change = calc_change(
+        today_click,
+        yesterday_click
+    )
+
+    signup_change = calc_change(
+        today_signup,
+        yesterday_signup
+    )
+
+    cpa_change = calc_change(
+        today_cpa,
+        yesterday_cpa
+    )
+
+    # CTR은 % 증감이 아니라 %p 차이
+    if yesterday_imp > 0:
+
+        ctr_change = (
+            today_ctr
+            - yesterday_ctr
+        )
+
+    else:
+
+        ctr_change = None
 
 
-    /* ===================================== */
-    /* 메인 숫자 */
-    /* ===================================== */
+    # ========================================================
+    # Delta 표시 함수
+    # ========================================================
 
-    div[data-testid="stMetricValue"] {
-        font-size: 29px;
-        font-weight: 750;
-        color: #172033;
-        letter-spacing: -0.7px;
-    }
+    def delta_percent(value):
 
+        if value is None:
+            return None
 
-    /* 숫자가 한 줄 유지되도록 */
-    div[data-testid="stMetricValue"] > div {
-        white-space: nowrap;
-    }
+        return f"{value:+.1f}% 어제 대비"
 
 
-    /* ===================================== */
-    /* 모바일 / 작은 화면 */
-    /* ===================================== */
+    def delta_ctr(value):
 
-    @media (max-width: 1000px) {
+        if value is None:
+            return None
+
+        return f"{value:+.2f}%p 어제 대비"
+
+
+    # ========================================================
+    # 카드 디자인
+    # ========================================================
+
+    st.markdown(
+        """
+        <style>
+
+        /* ----------------------------------------- */
+        /* 실시간 Metric 카드 */
+        /* ----------------------------------------- */
 
         div[data-testid="stMetric"] {
-            min-height: 125px;
-            padding: 18px 16px;
+
+            position: relative;
+
+            overflow: hidden;
+
+            min-height: 175px;
+
+            padding:
+                22px
+                20px
+                25px
+                20px;
+
+            border-radius: 20px;
+
+            border:
+                1px solid
+                rgba(220, 225, 235, 0.60);
+
+            box-shadow:
+                0 8px 25px
+                rgba(31, 41, 55, 0.055);
+
+            transition:
+                transform 0.20s ease,
+                box-shadow 0.20s ease;
         }
+
+
+        /* 마우스 오버 */
+
+        div[data-testid="stMetric"]:hover {
+
+            transform:
+                translateY(-3px);
+
+            box-shadow:
+                0 13px 30px
+                rgba(31, 41, 55, 0.09);
+        }
+
+
+        /* ----------------------------------------- */
+        /* 하단 부드러운 장식 */
+        /* ----------------------------------------- */
+
+        div[data-testid="stMetric"]::after {
+
+            content: "";
+
+            position: absolute;
+
+            left: -10%;
+
+            bottom: -45px;
+
+            width: 120%;
+
+            height: 80px;
+
+            border-radius: 50%;
+
+            opacity: 0.55;
+
+            pointer-events: none;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 1 광고비 */
+        /* ----------------------------------------- */
+
+        div[data-testid="column"]:nth-of-type(1)
+        div[data-testid="stMetric"] {
+
+            background:
+                linear-gradient(
+                    150deg,
+                    #ffffff 10%,
+                    #fff5f5 100%
+                );
+
+            border-color:
+                #ffe1e4;
+        }
+
+        div[data-testid="column"]:nth-of-type(1)
+        div[data-testid="stMetric"]::after {
+
+            background:
+                #ffe1e3;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 2 노출 */
+        /* ----------------------------------------- */
+
+        div[data-testid="column"]:nth-of-type(2)
+        div[data-testid="stMetric"] {
+
+            background:
+                linear-gradient(
+                    150deg,
+                    #ffffff 10%,
+                    #f2f7ff 100%
+                );
+
+            border-color:
+                #dceaff;
+        }
+
+        div[data-testid="column"]:nth-of-type(2)
+        div[data-testid="stMetric"]::after {
+
+            background:
+                #dceaff;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 3 클릭 */
+        /* ----------------------------------------- */
+
+        div[data-testid="column"]:nth-of-type(3)
+        div[data-testid="stMetric"] {
+
+            background:
+                linear-gradient(
+                    150deg,
+                    #ffffff 10%,
+                    #f1fbf5 100%
+                );
+
+            border-color:
+                #d8f1e2;
+        }
+
+        div[data-testid="column"]:nth-of-type(3)
+        div[data-testid="stMetric"]::after {
+
+            background:
+                #d8f2e2;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 4 CTR */
+        /* ----------------------------------------- */
+
+        div[data-testid="column"]:nth-of-type(4)
+        div[data-testid="stMetric"] {
+
+            background:
+                linear-gradient(
+                    150deg,
+                    #ffffff 10%,
+                    #f6f2ff 100%
+                );
+
+            border-color:
+                #e7ddff;
+        }
+
+        div[data-testid="column"]:nth-of-type(4)
+        div[data-testid="stMetric"]::after {
+
+            background:
+                #e8ddff;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 5 서비스 신청 */
+        /* ----------------------------------------- */
+
+        div[data-testid="column"]:nth-of-type(5)
+        div[data-testid="stMetric"] {
+
+            background:
+                linear-gradient(
+                    150deg,
+                    #ffffff 10%,
+                    #fff8eb 100%
+                );
+
+            border-color:
+                #f7e5c4;
+        }
+
+        div[data-testid="column"]:nth-of-type(5)
+        div[data-testid="stMetric"]::after {
+
+            background:
+                #ffebc7;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 6 CPA */
+        /* ----------------------------------------- */
+
+        div[data-testid="column"]:nth-of-type(6)
+        div[data-testid="stMetric"] {
+
+            background:
+                linear-gradient(
+                    150deg,
+                    #ffffff 10%,
+                    #effbf8 100%
+                );
+
+            border-color:
+                #d4eee8;
+        }
+
+        div[data-testid="column"]:nth-of-type(6)
+        div[data-testid="stMetric"]::after {
+
+            background:
+                #d3f1ea;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 카드 제목 */
+        /* ----------------------------------------- */
+
+        div[data-testid="stMetricLabel"] {
+
+            position: relative;
+
+            z-index: 2;
+
+            font-size: 14px;
+
+            font-weight: 650;
+
+            color: #566176;
+
+            margin-bottom: 10px;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 메인 숫자 */
+        /* ----------------------------------------- */
 
         div[data-testid="stMetricValue"] {
-            font-size: 23px;
+
+            position: relative;
+
+            z-index: 2;
+
+            font-size: 29px;
+
+            font-weight: 750;
+
+            color: #172033;
+
+            letter-spacing: -0.8px;
         }
 
-    }
 
-    </style>
-    """, unsafe_allow_html=True)
+        div[data-testid="stMetricValue"] > div {
+
+            white-space: nowrap;
+        }
 
 
-    # =========================
-    # 6개 실시간 카드
-    # =========================
+        /* ----------------------------------------- */
+        /* 어제 대비 */
+        /* ----------------------------------------- */
+
+        div[data-testid="stMetricDelta"] {
+
+            position: relative;
+
+            z-index: 2;
+
+            margin-top: 12px;
+
+            width: fit-content;
+
+            padding:
+                4px
+                9px;
+
+            border-radius: 999px;
+
+            font-size: 12px;
+
+            font-weight: 650;
+
+            background:
+                rgba(255, 255, 255, 0.72);
+        }
+
+
+        /* ----------------------------------------- */
+        /* 카드 사이 간격 */
+        /* ----------------------------------------- */
+
+        div[data-testid="stHorizontalBlock"] {
+
+            gap: 14px;
+        }
+
+
+        /* ----------------------------------------- */
+        /* 모바일 */
+        /* ----------------------------------------- */
+
+        @media (max-width: 1000px) {
+
+            div[data-testid="stMetric"] {
+
+                min-height: 145px;
+
+                padding:
+                    18px
+                    15px
+                    20px
+                    15px;
+            }
+
+            div[data-testid="stMetricValue"] {
+
+                font-size: 23px;
+            }
+
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+    # ========================================================
+    # 카드 6개
+    # ========================================================
 
     col1, col2, col3, col4, col5, col6 = st.columns(
         6,
@@ -1819,60 +2164,123 @@ if not today_row.empty:
     )
 
 
+    # --------------------------------------------------------
     # 광고비
+    # --------------------------------------------------------
+
     with col1:
+
         st.metric(
-            label="💳 오늘 광고비",
-            value=f"{today_cost:,.0f}원"
-        )
-
-
-    # 노출
-    with col2:
-        st.metric(
-            label="👁️ 오늘 노출",
-            value=f"{today_imp:,.0f}"
-        )
-
-
-    # 클릭
-    with col3:
-        st.metric(
-            label="🖱️ 오늘 클릭",
-            value=f"{today_click:,.0f}"
-        )
-
-
-    # CTR
-    with col4:
-        st.metric(
-            label="📊 오늘 CTR",
-            value=f"{today_ctr:.2f}%"
-        )
-
-
-    # 서비스 신청
-    with col5:
-        st.metric(
-            label="👥 오늘 서비스 신청",
-            value=f"{today_signup:,.0f}"
-        )
-
-
-    # CPA
-    with col6:
-        st.metric(
-            label="🎯 오늘 CPA",
-            value=(
-                f"{today_cpa:,.0f}원"
-                if today_signup > 0
-                else "-"
+            label="💳  오늘 광고비",
+            value=f"{today_cost:,.0f}원",
+            delta=delta_percent(
+                cost_change
             )
         )
 
 
+    # --------------------------------------------------------
+    # 노출
+    # --------------------------------------------------------
+
+    with col2:
+
+        st.metric(
+            label="👁️  오늘 노출",
+            value=f"{today_imp:,.0f}",
+            delta=delta_percent(
+                imp_change
+            )
+        )
+
+
+    # --------------------------------------------------------
+    # 클릭
+    # --------------------------------------------------------
+
+    with col3:
+
+        st.metric(
+            label="🖱️  오늘 클릭",
+            value=f"{today_click:,.0f}",
+            delta=delta_percent(
+                click_change
+            )
+        )
+
+
+    # --------------------------------------------------------
+    # CTR
+    # --------------------------------------------------------
+
+    with col4:
+
+        st.metric(
+            label="📊  오늘 CTR",
+            value=f"{today_ctr:.2f}%",
+            delta=delta_ctr(
+                ctr_change
+            )
+        )
+
+
+    # --------------------------------------------------------
+    # 서비스 신청
+    # --------------------------------------------------------
+
+    with col5:
+
+        st.metric(
+            label="👥  오늘 서비스 신청",
+            value=f"{today_signup:,.0f}",
+            delta=delta_percent(
+                signup_change
+            )
+        )
+
+
+    # --------------------------------------------------------
+    # CPA
+    # --------------------------------------------------------
+
+    with col6:
+
+        st.metric(
+            label="🎯  오늘 CPA",
+
+            value=(
+                f"{today_cpa:,.0f}원"
+                if today_signup > 0
+                else "-"
+            ),
+
+            delta=(
+                delta_percent(cpa_change)
+                if today_signup > 0
+                else None
+            ),
+
+            # CPA는 내려가는 것이 좋은 것이므로
+            # 일반 지표와 색상 방향 반대로
+            delta_color="inverse"
+        )
+
+
+    # ========================================================
+    # 실시간 안내
+    # ========================================================
+
+    st.caption(
+        f"● 실시간 업데이트 · "
+        f"{current_date.strftime('%Y년 %m월 %d일')} 기준"
+    )
+
+
 else:
-    st.info("오늘 광고 데이터가 아직 없습니다.")
+
+    st.info(
+        "오늘 광고 데이터가 아직 없습니다."
+    )
 # ============================================================
 # 일자별 성과
 # ============================================================
