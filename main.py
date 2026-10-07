@@ -1605,7 +1605,6 @@ else:
 # =========================
 # 오늘 실시간 데이터
 # =========================
-st.markdown("### 🔴 오늘 실시간 데이터")
 
 today_row = daily_df[daily_df["date"].dt.date == current_date]
 
@@ -1617,7 +1616,7 @@ if not today_row.empty:
 
     # 오늘 CTR
     today_ctr = (
-        (today_click / today_imp * 100)
+        today_click / today_imp * 100
         if today_imp > 0
         else 0
     )
@@ -1629,43 +1628,272 @@ if not today_row.empty:
         else 0
     )
 
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    # =========================
+    # 카드 디자인 CSS
+    # =========================
+    st.markdown("""
+    <style>
+    .realtime-wrap {
+        background: #ffffff;
+        border: 1px solid #eef1f6;
+        border-radius: 22px;
+        padding: 25px 24px 28px 24px;
+        margin-top: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 28px rgba(30, 41, 59, 0.06);
+    }
 
-    with col1:
-        st.metric(
-            "오늘 광고비",
-            f"{today_cost:,.0f}원"
-        )
+    .realtime-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 22px;
+    }
 
-    with col2:
-        st.metric(
-            "오늘 노출",
-            f"{today_imp:,.0f}"
-        )
+    .realtime-title {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        font-size: 25px;
+        font-weight: 800;
+        color: #172033;
+    }
 
-    with col3:
-        st.metric(
-            "오늘 클릭",
-            f"{today_click:,.0f}"
-        )
+    .live-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #ff4d5e;
+        box-shadow: 0 0 0 6px rgba(255, 77, 94, 0.10);
+    }
 
-    with col4:
-        st.metric(
-            "오늘 CTR",
-            f"{today_ctr:.2f}%"
-        )
+    .live-badge {
+        background: #f4f6fa;
+        color: #6b7280;
+        padding: 7px 13px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+    }
 
-    with col5:
-        st.metric(
-            "오늘 서비스 신청",
-            f"{today_signup:,.0f}"
-        )
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 13px;
+    }
 
-    with col6:
-        st.metric(
-            "오늘 CPA",
-            f"{today_cpa:,.0f}원" if today_signup > 0 else "-"
-        )
+    .metric-card {
+        min-height: 145px;
+        border-radius: 18px;
+        padding: 18px 17px;
+        box-sizing: border-box;
+        transition: all 0.2s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(30, 41, 59, 0.08);
+    }
+
+    .metric-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #49536a;
+        margin-bottom: 20px;
+    }
+
+    .metric-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+    }
+
+    .metric-value {
+        font-size: 27px;
+        line-height: 1.15;
+        font-weight: 800;
+        color: #172033;
+        letter-spacing: -0.5px;
+        white-space: nowrap;
+    }
+
+    /* 광고비 */
+    .card-cost {
+        background: linear-gradient(145deg, #fffafa, #fff5f5);
+        border: 1px solid #ffe1e1;
+    }
+    .icon-cost {
+        background: #ffe5e5;
+    }
+
+    /* 노출 */
+    .card-imp {
+        background: linear-gradient(145deg, #fbfdff, #f3f8ff);
+        border: 1px solid #dceaff;
+    }
+    .icon-imp {
+        background: #e3efff;
+    }
+
+    /* 클릭 */
+    .card-click {
+        background: linear-gradient(145deg, #fbfffc, #f1fbf5);
+        border: 1px solid #d9f2e3;
+    }
+    .icon-click {
+        background: #def5e7;
+    }
+
+    /* CTR */
+    .card-ctr {
+        background: linear-gradient(145deg, #fdfcff, #f7f3ff);
+        border: 1px solid #e9dfff;
+    }
+    .icon-ctr {
+        background: #eee5ff;
+    }
+
+    /* 신청 */
+    .card-signup {
+        background: linear-gradient(145deg, #fffdfa, #fff8ed);
+        border: 1px solid #f8e5c6;
+    }
+    .icon-signup {
+        background: #fff0d5;
+    }
+
+    /* CPA */
+    .card-cpa {
+        background: linear-gradient(145deg, #fbfffe, #effbf8);
+        border: 1px solid #d3eee8;
+    }
+    .icon-cpa {
+        background: #d9f4ee;
+    }
+
+    @media (max-width: 1100px) {
+        .metric-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 650px) {
+        .metric-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .realtime-header {
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .metric-value {
+            font-size: 23px;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # =========================
+    # 카드 출력
+    # =========================
+
+    cpa_text = (
+        f"{today_cpa:,.0f}원"
+        if today_signup > 0
+        else "-"
+    )
+
+    st.markdown(
+        f"""
+        <div class="realtime-wrap">
+
+            <div class="realtime-header">
+                <div class="realtime-title">
+                    <span class="live-dot"></span>
+                    오늘 실시간 데이터
+                </div>
+
+                <div class="live-badge">
+                    ● 실시간 업데이트
+                </div>
+            </div>
+
+            <div class="metric-grid">
+
+                <div class="metric-card card-cost">
+                    <div class="metric-label">
+                        <div class="metric-icon icon-cost">💳</div>
+                        오늘 광고비
+                    </div>
+                    <div class="metric-value">
+                        {today_cost:,.0f}원
+                    </div>
+                </div>
+
+                <div class="metric-card card-imp">
+                    <div class="metric-label">
+                        <div class="metric-icon icon-imp">👁</div>
+                        오늘 노출
+                    </div>
+                    <div class="metric-value">
+                        {today_imp:,.0f}
+                    </div>
+                </div>
+
+                <div class="metric-card card-click">
+                    <div class="metric-label">
+                        <div class="metric-icon icon-click">↗</div>
+                        오늘 클릭
+                    </div>
+                    <div class="metric-value">
+                        {today_click:,.0f}
+                    </div>
+                </div>
+
+                <div class="metric-card card-ctr">
+                    <div class="metric-label">
+                        <div class="metric-icon icon-ctr">▥</div>
+                        오늘 CTR
+                    </div>
+                    <div class="metric-value">
+                        {today_ctr:.2f}%
+                    </div>
+                </div>
+
+                <div class="metric-card card-signup">
+                    <div class="metric-label">
+                        <div class="metric-icon icon-signup">👥</div>
+                        오늘 서비스 신청
+                    </div>
+                    <div class="metric-value">
+                        {today_signup:,.0f}
+                    </div>
+                </div>
+
+                <div class="metric-card card-cpa">
+                    <div class="metric-label">
+                        <div class="metric-icon icon-cpa">◎</div>
+                        오늘 CPA
+                    </div>
+                    <div class="metric-value">
+                        {cpa_text}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 # ============================================================
 # 일자별 성과
 # ============================================================
