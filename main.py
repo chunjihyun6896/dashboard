@@ -1803,355 +1803,336 @@ if not today_row.empty:
 
 
     # ========================================================
-    # 카드 디자인
-    # ========================================================
+# 카드 디자인 - Soft Pastel
+# ========================================================
 
-    st.markdown(
-        """
-        <style>
+st.markdown(
+    """
+    <style>
 
-        /* ----------------------------------------- */
-        /* 실시간 Metric 카드 */
-        /* ----------------------------------------- */
+    /* ==============================
+       카드 기본
+       ============================== */
+
+    div[data-testid="stMetric"] {
+        position: relative;
+        overflow: hidden;
+
+        min-height: 170px;
+        padding: 22px 20px 24px 20px;
+
+        border-radius: 20px;
+
+        border: 1px solid rgba(225, 228, 235, 0.55);
+
+        box-shadow:
+            0 8px 24px rgba(44, 62, 90, 0.055);
+
+        transition:
+            transform 0.20s ease,
+            box-shadow 0.20s ease;
+    }
+
+
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-3px);
+
+        box-shadow:
+            0 13px 30px rgba(44, 62, 90, 0.09);
+    }
+
+
+    /* ==============================
+       광고비 - 핑크
+       ============================== */
+
+    div[data-testid="column"]:nth-of-type(1)
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #fffafa 40%,
+                #fff0f2 100%
+            );
+
+        border-color: #ffe3e6;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(1)
+    div[data-testid="stMetric"]::after {
+        background: #ffdfe3;
+    }
+
+
+    /* ==============================
+       노출 - 블루
+       ============================== */
+
+    div[data-testid="column"]:nth-of-type(2)
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #f8fbff 40%,
+                #edf5ff 100%
+            );
+
+        border-color: #dceaff;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(2)
+    div[data-testid="stMetric"]::after {
+        background: #dcecff;
+    }
+
+
+    /* ==============================
+       클릭 - 그린
+       ============================== */
+
+    div[data-testid="column"]:nth-of-type(3)
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #f8fdf9 40%,
+                #ecf9f1 100%
+            );
+
+        border-color: #d8f0e1;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(3)
+    div[data-testid="stMetric"]::after {
+        background: #d9f1e1;
+    }
+
+
+    /* ==============================
+       CTR - 퍼플
+       ============================== */
+
+    div[data-testid="column"]:nth-of-type(4)
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #fbf9ff 40%,
+                #f2edff 100%
+            );
+
+        border-color: #e8dfff;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(4)
+    div[data-testid="stMetric"]::after {
+        background: #e7ddff;
+    }
+
+
+    /* ==============================
+       서비스 신청 - 크림/오렌지
+       ============================== */
+
+    div[data-testid="column"]:nth-of-type(5)
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #fffdf8 40%,
+                #fff4df 100%
+            );
+
+        border-color: #f8e7c8;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(5)
+    div[data-testid="stMetric"]::after {
+        background: #ffebc5;
+    }
+
+
+    /* ==============================
+       CPA - 민트
+       ============================== */
+
+    div[data-testid="column"]:nth-of-type(6)
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(
+                155deg,
+                #ffffff 0%,
+                #f7fdfb 40%,
+                #e9f9f5 100%
+            );
+
+        border-color: #d4eee8;
+    }
+
+
+    div[data-testid="column"]:nth-of-type(6)
+    div[data-testid="stMetric"]::after {
+        background: #d3f0e9;
+    }
+
+
+    /* ==============================
+       카드 아래 물결 느낌
+       ============================== */
+
+    div[data-testid="stMetric"]::after {
+        content: "";
+
+        position: absolute;
+
+        width: 135%;
+        height: 78px;
+
+        left: -18%;
+        bottom: -50px;
+
+        border-radius: 48% 52% 0 0 / 70% 70% 0 0;
+
+        opacity: 0.72;
+
+        transform: rotate(-2deg);
+
+        pointer-events: none;
+
+        z-index: 0;
+    }
+
+
+    /* 두 번째 부드러운 물결 */
+
+    div[data-testid="stMetric"]::before {
+        content: "";
+
+        position: absolute;
+
+        width: 90%;
+        height: 55px;
+
+        right: -25%;
+        bottom: -38px;
+
+        border-radius: 50%;
+
+        background: rgba(255, 255, 255, 0.45);
+
+        transform: rotate(5deg);
+
+        pointer-events: none;
+
+        z-index: 1;
+    }
+
+
+    /* ==============================
+       제목
+       ============================== */
+
+    div[data-testid="stMetricLabel"] {
+        position: relative;
+        z-index: 5;
+
+        font-size: 14px;
+        font-weight: 650;
+
+        color: #4f596c;
+
+        margin-bottom: 10px;
+    }
+
+
+    /* ==============================
+       숫자
+       ============================== */
+
+    div[data-testid="stMetricValue"] {
+        position: relative;
+        z-index: 5;
+
+        font-size: 29px;
+        font-weight: 750;
+
+        color: #172033;
+
+        letter-spacing: -0.7px;
+    }
+
+
+    div[data-testid="stMetricValue"] > div {
+        white-space: nowrap;
+    }
+
+
+    /* ==============================
+       어제 대비
+       ============================== */
+
+    div[data-testid="stMetricDelta"] {
+        position: relative;
+        z-index: 5;
+
+        width: fit-content;
+
+        margin-top: 12px;
+
+        padding: 5px 10px;
+
+        border-radius: 999px;
+
+        background: rgba(255,255,255,0.70);
+
+        box-shadow:
+            0 2px 8px rgba(30,41,59,0.035);
+
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+
+    /* ==============================
+       카드 간격
+       ============================== */
+
+    div[data-testid="stHorizontalBlock"] {
+        gap: 14px;
+    }
+
+
+    /* ==============================
+       모바일
+       ============================== */
+
+    @media (max-width: 1000px) {
 
         div[data-testid="stMetric"] {
-
-            position: relative;
-
-            overflow: hidden;
-
-            min-height: 175px;
-
-            padding:
-                22px
-                20px
-                25px
-                20px;
-
-            border-radius: 20px;
-
-            border:
-                1px solid
-                rgba(220, 225, 235, 0.60);
-
-            box-shadow:
-                0 8px 25px
-                rgba(31, 41, 55, 0.055);
-
-            transition:
-                transform 0.20s ease,
-                box-shadow 0.20s ease;
+            min-height: 145px;
+            padding: 18px 15px 20px 15px;
         }
-
-
-        /* 마우스 오버 */
-
-        div[data-testid="stMetric"]:hover {
-
-            transform:
-                translateY(-3px);
-
-            box-shadow:
-                0 13px 30px
-                rgba(31, 41, 55, 0.09);
-        }
-
-
-        /* ----------------------------------------- */
-        /* 하단 부드러운 장식 */
-        /* ----------------------------------------- */
-
-        div[data-testid="stMetric"]::after {
-
-            content: "";
-
-            position: absolute;
-
-            left: -10%;
-
-            bottom: -45px;
-
-            width: 120%;
-
-            height: 80px;
-
-            border-radius: 50%;
-
-            opacity: 0.55;
-
-            pointer-events: none;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 1 광고비 */
-        /* ----------------------------------------- */
-
-        div[data-testid="column"]:nth-of-type(1)
-        div[data-testid="stMetric"] {
-
-            background:
-                linear-gradient(
-                    150deg,
-                    #ffffff 10%,
-                    #fff5f5 100%
-                );
-
-            border-color:
-                #ffe1e4;
-        }
-
-        div[data-testid="column"]:nth-of-type(1)
-        div[data-testid="stMetric"]::after {
-
-            background:
-                #ffe1e3;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 2 노출 */
-        /* ----------------------------------------- */
-
-        div[data-testid="column"]:nth-of-type(2)
-        div[data-testid="stMetric"] {
-
-            background:
-                linear-gradient(
-                    150deg,
-                    #ffffff 10%,
-                    #f2f7ff 100%
-                );
-
-            border-color:
-                #dceaff;
-        }
-
-        div[data-testid="column"]:nth-of-type(2)
-        div[data-testid="stMetric"]::after {
-
-            background:
-                #dceaff;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 3 클릭 */
-        /* ----------------------------------------- */
-
-        div[data-testid="column"]:nth-of-type(3)
-        div[data-testid="stMetric"] {
-
-            background:
-                linear-gradient(
-                    150deg,
-                    #ffffff 10%,
-                    #f1fbf5 100%
-                );
-
-            border-color:
-                #d8f1e2;
-        }
-
-        div[data-testid="column"]:nth-of-type(3)
-        div[data-testid="stMetric"]::after {
-
-            background:
-                #d8f2e2;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 4 CTR */
-        /* ----------------------------------------- */
-
-        div[data-testid="column"]:nth-of-type(4)
-        div[data-testid="stMetric"] {
-
-            background:
-                linear-gradient(
-                    150deg,
-                    #ffffff 10%,
-                    #f6f2ff 100%
-                );
-
-            border-color:
-                #e7ddff;
-        }
-
-        div[data-testid="column"]:nth-of-type(4)
-        div[data-testid="stMetric"]::after {
-
-            background:
-                #e8ddff;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 5 서비스 신청 */
-        /* ----------------------------------------- */
-
-        div[data-testid="column"]:nth-of-type(5)
-        div[data-testid="stMetric"] {
-
-            background:
-                linear-gradient(
-                    150deg,
-                    #ffffff 10%,
-                    #fff8eb 100%
-                );
-
-            border-color:
-                #f7e5c4;
-        }
-
-        div[data-testid="column"]:nth-of-type(5)
-        div[data-testid="stMetric"]::after {
-
-            background:
-                #ffebc7;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 6 CPA */
-        /* ----------------------------------------- */
-
-        div[data-testid="column"]:nth-of-type(6)
-        div[data-testid="stMetric"] {
-
-            background:
-                linear-gradient(
-                    150deg,
-                    #ffffff 10%,
-                    #effbf8 100%
-                );
-
-            border-color:
-                #d4eee8;
-        }
-
-        div[data-testid="column"]:nth-of-type(6)
-        div[data-testid="stMetric"]::after {
-
-            background:
-                #d3f1ea;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 카드 제목 */
-        /* ----------------------------------------- */
-
-        div[data-testid="stMetricLabel"] {
-
-            position: relative;
-
-            z-index: 2;
-
-            font-size: 14px;
-
-            font-weight: 650;
-
-            color: #566176;
-
-            margin-bottom: 10px;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 메인 숫자 */
-        /* ----------------------------------------- */
 
         div[data-testid="stMetricValue"] {
-
-            position: relative;
-
-            z-index: 2;
-
-            font-size: 29px;
-
-            font-weight: 750;
-
-            color: #172033;
-
-            letter-spacing: -0.8px;
+            font-size: 23px;
         }
 
+    }
 
-        div[data-testid="stMetricValue"] > div {
-
-            white-space: nowrap;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 어제 대비 */
-        /* ----------------------------------------- */
-
-        div[data-testid="stMetricDelta"] {
-
-            position: relative;
-
-            z-index: 2;
-
-            margin-top: 12px;
-
-            width: fit-content;
-
-            padding:
-                4px
-                9px;
-
-            border-radius: 999px;
-
-            font-size: 12px;
-
-            font-weight: 650;
-
-            background:
-                rgba(255, 255, 255, 0.72);
-        }
-
-
-        /* ----------------------------------------- */
-        /* 카드 사이 간격 */
-        /* ----------------------------------------- */
-
-        div[data-testid="stHorizontalBlock"] {
-
-            gap: 14px;
-        }
-
-
-        /* ----------------------------------------- */
-        /* 모바일 */
-        /* ----------------------------------------- */
-
-        @media (max-width: 1000px) {
-
-            div[data-testid="stMetric"] {
-
-                min-height: 145px;
-
-                padding:
-                    18px
-                    15px
-                    20px
-                    15px;
-            }
-
-            div[data-testid="stMetricValue"] {
-
-                font-size: 23px;
-            }
-
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
     # ========================================================
