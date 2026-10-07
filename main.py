@@ -4,6 +4,7 @@ import requests
 import time
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
+from io import BytesIO
 
 
 # ============================================================
@@ -2340,3 +2341,62 @@ st.caption(
     "※ 서비스 신청(7일)은 카카오 전환 어트리뷰션 기준으로 "
     "이후 수치가 변경될 수 있습니다."
 )
+
+
+# ============================================================
+# Google 스프레드시트 연동 - 정원파트너스(DB)
+# ============================================================
+
+GOOGLE_SHEET_ID = "1NOMPUooMrE8KKRdZT0C-q0tVeLTywZCXYKOg4BeX3Hw"
+GOOGLE_SHEET_GID = "1466561845"
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_google_sheet(sheet_id, gid):
+    """
+    공개(링크가 있는 모든 사용자 - 뷰어) Google Sheet를 CSV로 읽습니다.
+    60초 캐시 후 최신 데이터를 다시 조회합니다.
+    """
+    csv_url = (
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}/export"
+        f"?format=csv&gid={gid}"
+    )
+
+    response = requests.get(csv_url, timeout=15)
+    response.raise_for_status()
+
+    return pd.read_csv(
+        BytesIO(response.content),
+        dtype=str,
+        keep_default_na=False
+    )
+
+
+st.markdown("---")
+st.markdown("## 📋 정원파트너스(DB)")
+st.caption("Google 스프레드시트 연동 데이터 · 최대 60초 간격으로 최신 내용 반영")
+
+try:
+    with st.spinner("스프레드시트 데이터를 불러오는 중입니다..."):
+        sheet_df = load_google_sheet(
+            GOOGLE_SHEET_ID,
+            GOOGLE_SHEET_GID
+        )
+
+    if sheet_df.empty:
+        st.info("스프레드시트에 표시할 데이터가 없습니다.")
+    else:
+        st.dataframe(
+            sheet_df,
+            use_container_width=True,
+            hide_index=True,
+            height=520
+        )
+
+except requests.Timeout:
+    st.warning("Google 스프레드시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요.")
+
+except Exception as e:
+    st.error("Google 스프레드시트 데이터를 불러오지 못했습니다.")
+    with st.expander("오류 내용 확인"):
+        st.write(str(e))
