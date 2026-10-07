@@ -152,6 +152,11 @@ ADVERTISERS = {
         "ad_account_id": "996206"
     },
 
+    "정원파트너스": {
+        "ad_account_id": "1006207"
+    },
+
+
     "따뜻한하루": {
         "ad_account_id": "958077"
     }
