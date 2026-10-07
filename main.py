@@ -138,6 +138,7 @@ ADVERTISERS = {
 
     "GHB": {
         "ad_account_id": "987505"
+    }
 
     "법률사무소 금하": {
         "ad_account_id": "1001864"
