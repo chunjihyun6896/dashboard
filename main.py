@@ -2387,15 +2387,13 @@ try:
             GOOGLE_SHEET_GID
         )
 
-    if sheet_df.empty:
-        st.info("스프레드시트에 표시할 데이터가 없습니다.")
-    else:
-        st.dataframe(
-            sheet_df,
-            use_container_width=True,
-            hide_index=True,
-            height=520
-        )
+    # 데이터가 0건이어도 헤더는 항상 표시
+    st.dataframe(
+        sheet_df,
+        use_container_width=True,
+        hide_index=True,
+        height=520
+    )
 
 except requests.Timeout:
     st.warning("Google 스프레드시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요.")
