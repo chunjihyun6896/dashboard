@@ -2967,11 +2967,50 @@ else:
 
         if image_url:
 
-            st.image(
-                image_url,
-                caption=creative_name,
-                use_container_width=True
-            )
+            try:
+                # Streamlit Cloud가 외부 이미지 URL을 직접 media storage로
+                # 가져오지 못하는 경우가 있어 먼저 bytes로 내려받아 표시합니다.
+                image_response = requests.get(
+                    image_url,
+                    headers={
+                        "User-Agent": (
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+                        )
+                    },
+                    timeout=20
+                )
+                image_response.raise_for_status()
+
+                content_type = image_response.headers.get(
+                    "Content-Type",
+                    ""
+                ).lower()
+
+                if (
+                    not image_response.content
+                    or (
+                        content_type
+                        and not content_type.startswith("image/")
+                    )
+                ):
+                    raise ValueError(
+                        f"이미지 응답 형식이 아닙니다: {content_type or 'unknown'}"
+                    )
+
+                st.image(
+                    image_response.content,
+                    caption=creative_name,
+                    use_container_width=True
+                )
+
+            except Exception as image_error:
+                st.warning(
+                    "소재 정보는 정상적으로 불러왔지만 "
+                    "대표 이미지는 카카오 이미지 서버에서 가져오지 못했습니다."
+                )
+                with st.expander("이미지 오류 확인"):
+                    st.code(str(image_error))
 
         else:
 
