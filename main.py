@@ -360,6 +360,673 @@ def fetch_campaigns(ad_account_id):
 
 
 # ============================================================
+# 광고그룹 목록
+# ============================================================
+
+def fetch_ad_groups(ad_account_id, campaign_id):
+
+    data = kakao_get(
+        "/adGroups",
+        ad_account_id,
+        params={
+            "campaignId": campaign_id
+        }
+    )
+
+    if not data:
+        return []
+
+    items = (
+        data.get("content")
+        or data.get("data")
+        or []
+    )
+
+    if not isinstance(items, list):
+        return []
+
+    result = []
+
+    for item in items:
+
+        if not isinstance(item, dict):
+            continue
+
+        ad_group_id = (
+            item.get("id")
+            or item.get("adGroupId")
+        )
+
+        if ad_group_id is None:
+            continue
+
+        result.append({
+            "ad_group_id": str(ad_group_id),
+            "ad_group_name": str(
+                item.get("name")
+                or f"광고그룹 {ad_group_id}"
+            )
+        })
+
+    return result
+
+
+# ============================================================
+# 소재 목록
+# ============================================================
+
+def fetch_creatives(ad_account_id, ad_group_id):
+
+    data = kakao_get(
+        "/creatives",
+        ad_account_id,
+        params={
+            "adGroupId": ad_group_id
+        }
+    )
+
+    if not data:
+        return []
+
+    items = (
+        data.get("content")
+        or data.get("data")
+        or []
+    )
+
+    if not isinstance(items, list):
+        return []
+
+    result = []
+
+    for item in items:
+
+        if not isinstance(item, dict):
+            continue
+
+        creative_id = (
+            item.get("id")
+            or item.get("creativeId")
+        )
+
+        if creative_id is None:
+            continue
+
+        result.append({
+            "creative_id": str(creative_id),
+
+            "creative_name": str(
+                item.get("name")
+                or f"소재 {creative_id}"
+            ),
+
+            "config": item.get(
+                "config",
+                ""
+            )
+        })
+
+    return result
+
+
+# ============================================================
+# 전체 소재 목록
+# 캠페인 → 광고그룹 → 소재
+# ============================================================
+
+@st.cache_data(ttl=600)
+def fetch_all_creatives(ad_account_id):
+
+    campaigns = fetch_campaigns(
+        ad_account_id
+    )
+
+    creatives = []
+
+    for campaign in campaigns:
+
+        campaign_id = (
+            campaign["campaign_id"]
+        )
+
+        campaign_name = (
+            campaign["campaign_name"]
+        )
+
+        ad_groups = fetch_ad_groups(
+            ad_account_id,
+            campaign_id
+        )
+
+        for ad_group in ad_groups:
+
+            ad_group_id = (
+                ad_group["ad_group_id"]
+            )
+
+            ad_group_name = (
+                ad_group["ad_group_name"]
+            )
+
+            creative_items = fetch_creatives(
+                ad_account_id,
+                ad_group_id
+            )
+
+            for creative in creative_items:
+
+                creative["campaign_id"] = (
+                    campaign_id
+                )
+
+                creative["campaign_name"] = (
+                    campaign_name
+                )
+
+                creative["ad_group_id"] = (
+                    ad_group_id
+                )
+
+                creative["ad_group_name"] = (
+                    ad_group_name
+                )
+
+                creatives.append(
+                    creative
+                )
+
+    return creatives
+
+
+# ============================================================
+# 소재 상세
+# ============================================================
+
+@st.cache_data(ttl=1800)
+def fetch_creative_detail(
+    ad_account_id,
+    creative_id
+):
+
+    data = kakao_get(
+        f"/creatives/{creative_id}",
+        ad_account_id,
+        params={}
+    )
+
+    if not data:
+        return {}
+
+    # API 형태에 따라 대응
+    if isinstance(
+        data.get("data"),
+        dict
+    ):
+        return data["data"]
+
+    return data
+
+
+# ============================================================
+# 소재 보고서 1회 호출
+# ============================================================
+
+def fetch_creative_report_once(
+    ad_account_id,
+    creative_ids,
+    start_date=None,
+    end_date=None,
+    today=False
+):
+
+    if not creative_ids:
+        return None
+
+    params = [
+        (
+            "creativeId",
+            ",".join(
+                map(str, creative_ids)
+            )
+        ),
+        (
+            "timeUnit",
+            "ALL"
+        ),
+        (
+            "metricsGroup",
+            "BASIC"
+        ),
+        (
+            "metricsGroup",
+            "PIXEL_SDK_CONVERSION"
+        )
+    ]
+
+    if today:
+
+        params.append(
+            (
+                "datePreset",
+                "TODAY"
+            )
+        )
+
+    else:
+
+        params.extend([
+            (
+                "start",
+                start_date.strftime(
+                    "%Y%m%d"
+                )
+            ),
+            (
+                "end",
+                end_date.strftime(
+                    "%Y%m%d"
+                )
+            )
+        ])
+
+    return kakao_get(
+        "/creatives/report",
+        ad_account_id,
+        params=params
+    )
+
+
+# ============================================================
+# 소재 보고서 → DataFrame
+# ============================================================
+
+def creative_report_to_dataframe(
+    report
+):
+
+    columns = [
+        "creative_id",
+        "cost",
+        "imp",
+        "click",
+        "signup_7d"
+    ]
+
+    if not report:
+
+        return pd.DataFrame(
+            columns=columns
+        )
+
+    data = report.get(
+        "data",
+        []
+    )
+
+    if not isinstance(data, list):
+
+        return pd.DataFrame(
+            columns=columns
+        )
+
+    rows = []
+
+    for item in data:
+
+        if not isinstance(
+            item,
+            dict
+        ):
+            continue
+
+        dimensions = (
+            item.get("dimensions")
+            or {}
+        )
+
+        metrics = (
+            item.get("metrics")
+            or {}
+        )
+
+        creative_id = (
+            dimensions.get(
+                "creative_id"
+            )
+            or dimensions.get(
+                "creativeId"
+            )
+        )
+
+        if creative_id is None:
+            continue
+
+        rows.append({
+            "creative_id":
+                str(creative_id),
+
+            "cost":
+                float(
+                    metrics.get(
+                        "cost",
+                        0
+                    )
+                    or 0
+                ),
+
+            "imp":
+                int(
+                    metrics.get(
+                        "imp",
+                        0
+                    )
+                    or 0
+                ),
+
+            "click":
+                int(
+                    metrics.get(
+                        "click",
+                        0
+                    )
+                    or 0
+                ),
+
+            "signup_7d":
+                int(
+                    metrics.get(
+                        "conv_signup_7d",
+                        0
+                    )
+                    or 0
+                )
+        })
+
+    return pd.DataFrame(
+        rows,
+        columns=columns
+    )
+
+
+# ============================================================
+# 소재별 월 성과
+# ============================================================
+
+@st.cache_data(ttl=300)
+def load_creative_performance(
+    ad_account_id,
+    selected_year,
+    selected_month
+):
+
+    today = today_kst()
+
+    creatives = fetch_all_creatives(
+        ad_account_id
+    )
+
+    if not creatives:
+
+        return (
+            pd.DataFrame(),
+            []
+        )
+
+    creative_ids = [
+        item["creative_id"]
+        for item in creatives
+    ]
+
+    month_start = date(
+        selected_year,
+        selected_month,
+        1
+    )
+
+    if selected_month == 12:
+
+        next_month = date(
+            selected_year + 1,
+            1,
+            1
+        )
+
+    else:
+
+        next_month = date(
+            selected_year,
+            selected_month + 1,
+            1
+        )
+
+    month_end = (
+        next_month
+        - timedelta(days=1)
+    )
+
+    historical_end = min(
+        month_end,
+        today - timedelta(days=1)
+    )
+
+    report_frames = []
+
+    # ---------------------------------------------
+    # 소재는 최대 100개씩
+    # ---------------------------------------------
+
+    chunks = [
+        creative_ids[i:i + 100]
+        for i in range(
+            0,
+            len(creative_ids),
+            100
+        )
+    ]
+
+    for chunk_index, chunk in enumerate(
+        chunks
+    ):
+
+        chunk_frames = []
+
+        # -----------------------------------------
+        # 과거 ~ 어제
+        # -----------------------------------------
+
+        if month_start <= historical_end:
+
+            raw = fetch_creative_report_once(
+                ad_account_id,
+                chunk,
+                start_date=month_start,
+                end_date=historical_end
+            )
+
+            df = (
+                creative_report_to_dataframe(
+                    raw
+                )
+            )
+
+            if not df.empty:
+                chunk_frames.append(df)
+
+        # -----------------------------------------
+        # 오늘
+        # start/end에는 오늘을 넣을 수 없으므로
+        # TODAY 별도 조회
+        # -----------------------------------------
+
+        if (
+            selected_year == today.year
+            and
+            selected_month == today.month
+        ):
+
+            # 같은 report API 연속 호출 제한 대응
+            if month_start <= historical_end:
+                time.sleep(5.2)
+
+            raw_today = (
+                fetch_creative_report_once(
+                    ad_account_id,
+                    chunk,
+                    today=True
+                )
+            )
+
+            today_df = (
+                creative_report_to_dataframe(
+                    raw_today
+                )
+            )
+
+            if not today_df.empty:
+                chunk_frames.append(
+                    today_df
+                )
+
+        if chunk_frames:
+
+            report_frames.extend(
+                chunk_frames
+            )
+
+        # 다음 100개 묶음 호출 전 대기
+        if chunk_index < len(chunks) - 1:
+            time.sleep(5.2)
+
+    # ---------------------------------------------
+    # 성과가 하나도 없는 경우
+    # ---------------------------------------------
+
+    if report_frames:
+
+        performance = pd.concat(
+            report_frames,
+            ignore_index=True
+        )
+
+        performance = (
+            performance
+            .groupby(
+                "creative_id",
+                as_index=False
+            )
+            .agg({
+                "cost": "sum",
+                "imp": "sum",
+                "click": "sum",
+                "signup_7d": "sum"
+            })
+        )
+
+    else:
+
+        performance = pd.DataFrame(
+            columns=[
+                "creative_id",
+                "cost",
+                "imp",
+                "click",
+                "signup_7d"
+            ]
+        )
+
+    # ---------------------------------------------
+    # 소재 목록 DataFrame
+    # ---------------------------------------------
+
+    creative_df = pd.DataFrame(
+        creatives
+    )
+
+    result = creative_df.merge(
+        performance,
+        on="creative_id",
+        how="left"
+    )
+
+    numeric_columns = [
+        "cost",
+        "imp",
+        "click",
+        "signup_7d"
+    ]
+
+    for column in numeric_columns:
+
+        result[column] = (
+            pd.to_numeric(
+                result[column],
+                errors="coerce"
+            )
+            .fillna(0)
+        )
+
+    # ---------------------------------------------
+    # CTR
+    # ---------------------------------------------
+
+    result["ctr"] = 0.0
+
+    imp_mask = (
+        result["imp"] > 0
+    )
+
+    result.loc[
+        imp_mask,
+        "ctr"
+    ] = (
+        result.loc[
+            imp_mask,
+            "click"
+        ]
+        /
+        result.loc[
+            imp_mask,
+            "imp"
+        ]
+        * 100
+    )
+
+    # ---------------------------------------------
+    # CPA
+    # ---------------------------------------------
+
+    result["cpa"] = 0.0
+
+    signup_mask = (
+        result["signup_7d"] > 0
+    )
+
+    result.loc[
+        signup_mask,
+        "cpa"
+    ] = (
+        result.loc[
+            signup_mask,
+            "cost"
+        ]
+        /
+        result.loc[
+            signup_mask,
+            "signup_7d"
+        ]
+    )
+
+    # 광고비 많은 순
+    result = result.sort_values(
+        by="cost",
+        ascending=False
+    ).reset_index(
+        drop=True
+    )
+
+    return result, creatives
+
+# ============================================================
 # 광고계정 보고서
 # ============================================================
 
@@ -2281,6 +2948,542 @@ else:
         hide_index=True
     )
 
+
+# ============================================================
+# 소재별 광고 성과
+# ============================================================
+
+st.markdown(
+    "### 🎨 소재별 광고 성과"
+)
+
+st.caption(
+    f"{selected_year}년 "
+    f"{selected_month}월 기준 · "
+    "소재를 선택하면 실제 집행 소재를 확인할 수 있습니다."
+)
+
+
+with st.spinner(
+    "소재별 광고 데이터를 불러오는 중입니다..."
+):
+
+    creative_df, creative_list = (
+        load_creative_performance(
+            selected_ad_account_id,
+            selected_year,
+            selected_month
+        )
+    )
+
+
+if (
+    creative_df is None
+    or creative_df.empty
+):
+
+    st.info(
+        "선택한 기간에 조회 가능한 소재 데이터가 없습니다."
+    )
+
+else:
+
+    # --------------------------------------------------------
+    # 실제 광고 집행이 있거나 전환이 있는 소재 우선 표시
+    # --------------------------------------------------------
+
+    active_creative_df = (
+        creative_df[
+            (
+                creative_df["cost"] > 0
+            )
+            |
+            (
+                creative_df["imp"] > 0
+            )
+            |
+            (
+                creative_df["click"] > 0
+            )
+            |
+            (
+                creative_df[
+                    "signup_7d"
+                ] > 0
+            )
+        ]
+        .copy()
+    )
+
+    # 성과가 전혀 없어도 소재 목록은 보여주고 싶다면
+    # 아래 fallback 사용
+    if active_creative_df.empty:
+        active_creative_df = (
+            creative_df.copy()
+        )
+
+
+    # ========================================================
+    # 표시용 데이터
+    # ========================================================
+
+    display_creative = (
+        active_creative_df.copy()
+    )
+
+
+    display_creative["소재명"] = (
+        display_creative[
+            "creative_name"
+        ]
+    )
+
+
+    display_creative["광고비"] = (
+        display_creative[
+            "cost"
+        ]
+        .apply(money)
+    )
+
+
+    display_creative["노출"] = (
+        display_creative[
+            "imp"
+        ]
+        .apply(number)
+    )
+
+
+    display_creative["클릭"] = (
+        display_creative[
+            "click"
+        ]
+        .apply(number)
+    )
+
+
+    display_creative["CTR"] = (
+        display_creative[
+            "ctr"
+        ]
+        .apply(percent)
+    )
+
+
+    display_creative[
+        "서비스 신청"
+    ] = (
+        display_creative[
+            "signup_7d"
+        ]
+        .apply(number)
+    )
+
+
+    display_creative[
+        "CPA 단가"
+    ] = display_creative.apply(
+
+        lambda row:
+
+        money(row["cpa"])
+
+        if row["signup_7d"] > 0
+
+        else "-",
+
+        axis=1
+    )
+
+
+    # ========================================================
+    # 소재 성과표
+    # ========================================================
+
+    st.dataframe(
+        display_creative[
+            [
+                "소재명",
+                "광고비",
+                "노출",
+                "클릭",
+                "CTR",
+                "서비스 신청",
+                "CPA 단가"
+            ]
+        ],
+
+        use_container_width=True,
+
+        hide_index=True,
+
+        column_config={
+
+            "소재명":
+                st.column_config.TextColumn(
+                    "소재명",
+                    help=(
+                        "아래 소재 선택에서 "
+                        "소재를 선택하면 실제 집행 이미지와 "
+                        "상세 정보를 확인할 수 있습니다."
+                    ),
+                    width="large"
+                ),
+
+            "광고비":
+                st.column_config.TextColumn(
+                    "광고비",
+                    width="medium"
+                ),
+
+            "노출":
+                st.column_config.TextColumn(
+                    "노출",
+                    width="small"
+                ),
+
+            "클릭":
+                st.column_config.TextColumn(
+                    "클릭",
+                    width="small"
+                ),
+
+            "CTR":
+                st.column_config.TextColumn(
+                    "CTR",
+                    width="small"
+                ),
+
+            "서비스 신청":
+                st.column_config.TextColumn(
+                    "서비스 신청",
+                    width="small"
+                ),
+
+            "CPA 단가":
+                st.column_config.TextColumn(
+                    "CPA 단가",
+                    width="medium"
+                )
+        }
+    )
+
+
+    # ========================================================
+    # 소재 미리보기
+    # ========================================================
+
+    st.markdown(
+        "#### 🖼️ 집행 소재 확인"
+    )
+
+
+    # 동일 소재명이 있을 수도 있으므로
+    # ID까지 내부적으로 구분
+    creative_options = {}
+
+    for _, row in (
+        active_creative_df.iterrows()
+    ):
+
+        label = (
+            f"{row['creative_name']} "
+            f"· ID {row['creative_id']}"
+        )
+
+        creative_options[
+            label
+        ] = str(
+            row["creative_id"]
+        )
+
+
+    selected_creative_label = (
+        st.selectbox(
+            "확인할 소재",
+            options=list(
+                creative_options.keys()
+            )
+        )
+    )
+
+
+    selected_creative_id = (
+        creative_options[
+            selected_creative_label
+        ]
+    )
+
+
+    selected_creative_row = (
+        active_creative_df[
+            active_creative_df[
+                "creative_id"
+            ].astype(str)
+            ==
+            str(selected_creative_id)
+        ]
+        .iloc[0]
+    )
+
+
+    # ========================================================
+    # 소재 상세 API
+    # ========================================================
+
+    with st.spinner(
+        "소재 이미지를 불러오는 중입니다..."
+    ):
+
+        creative_detail = (
+            fetch_creative_detail(
+                selected_ad_account_id,
+                selected_creative_id
+            )
+        )
+
+
+    # ========================================================
+    # 상세 정보 추출
+    # ========================================================
+
+    creative_name = (
+        creative_detail.get("name")
+        or selected_creative_row[
+            "creative_name"
+        ]
+    )
+
+
+    creative_format = (
+        creative_detail.get("format")
+        or "-"
+    )
+
+
+    creative_status = (
+        creative_detail.get(
+            "creativeStatus"
+        )
+        or creative_detail.get(
+            "config"
+        )
+        or selected_creative_row.get(
+            "config",
+            "-"
+        )
+    )
+
+
+    image_info = (
+        creative_detail.get("image")
+        or {}
+    )
+
+
+    image_url = None
+
+    if isinstance(
+        image_info,
+        dict
+    ):
+
+        image_url = (
+            image_info.get("url")
+        )
+
+
+    # 이미지가 메인 image가 아닌
+    # thumbnailImage에 있는 경우 대응
+    if not image_url:
+
+        thumbnail_info = (
+            creative_detail.get(
+                "thumbnailImage"
+            )
+            or {}
+        )
+
+        if isinstance(
+            thumbnail_info,
+            dict
+        ):
+
+            image_url = (
+                thumbnail_info.get(
+                    "url"
+                )
+            )
+
+
+    # ========================================================
+    # 소재 상세 레이아웃
+    # ========================================================
+
+    preview_col1, preview_col2 = (
+        st.columns(
+            [1.1, 1.9],
+            gap="large"
+        )
+    )
+
+
+    # --------------------------------------------------------
+    # 이미지
+    # --------------------------------------------------------
+
+    with preview_col1:
+
+        if image_url:
+
+            st.image(
+                image_url,
+                caption=creative_name,
+                use_container_width=True
+            )
+
+        else:
+
+            st.info(
+                "이 소재에서 바로 표시할 수 있는 "
+                "대표 이미지가 없습니다."
+            )
+
+
+    # --------------------------------------------------------
+    # 정보
+    # --------------------------------------------------------
+
+    with preview_col2:
+
+        st.markdown(
+            f"### {creative_name}"
+        )
+
+        st.caption(
+            f"소재 ID · "
+            f"{selected_creative_id}"
+        )
+
+
+        info_col1, info_col2 = (
+            st.columns(2)
+        )
+
+
+        with info_col1:
+
+            st.metric(
+                "광고비",
+                money(
+                    selected_creative_row[
+                        "cost"
+                    ]
+                )
+            )
+
+            st.metric(
+                "클릭",
+                number(
+                    selected_creative_row[
+                        "click"
+                    ]
+                )
+            )
+
+            st.metric(
+                "서비스 신청",
+                number(
+                    selected_creative_row[
+                        "signup_7d"
+                    ]
+                )
+            )
+
+
+        with info_col2:
+
+            st.metric(
+                "노출",
+                number(
+                    selected_creative_row[
+                        "imp"
+                    ]
+                )
+            )
+
+            st.metric(
+                "CTR",
+                percent(
+                    selected_creative_row[
+                        "ctr"
+                    ]
+                )
+            )
+
+            if (
+                selected_creative_row[
+                    "signup_7d"
+                ] > 0
+            ):
+
+                cpa_text = money(
+                    selected_creative_row[
+                        "cpa"
+                    ]
+                )
+
+            else:
+
+                cpa_text = "-"
+
+            st.metric(
+                "CPA 단가",
+                cpa_text
+            )
+
+
+        st.markdown(
+            f"**소재 형식** · "
+            f"{creative_format}"
+        )
+
+        st.markdown(
+            f"**운영 상태** · "
+            f"{creative_status}"
+        )
+
+
+        # ---------------------------------------------
+        # 네이티브 소재 문구
+        # ---------------------------------------------
+
+        title = (
+            creative_detail.get(
+                "title"
+            )
+        )
+
+        description = (
+            creative_detail.get(
+                "description"
+            )
+        )
+
+        if title:
+
+            st.markdown(
+                f"**광고 제목** · "
+                f"{title}"
+            )
+
+        if description:
+
+            st.markdown(
+                f"**광고 문구** · "
+                f"{description}"
+            )
 
 # ============================================================
 # AI 마케팅 진단
