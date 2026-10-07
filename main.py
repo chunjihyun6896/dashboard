@@ -1618,93 +1618,248 @@ if not today_row.empty:
     today_click = today_row["click"].sum()
     today_signup = today_row["signup_7d"].sum()
 
+    # 오늘 CTR
     today_ctr = (
         today_click / today_imp * 100
         if today_imp > 0
         else 0
     )
 
+    # 오늘 CPA
     today_cpa = (
         today_cost / today_signup
         if today_signup > 0
         else 0
     )
 
-    # 카드 디자인
+    # =========================
+    # 실시간 카드 디자인
+    # =========================
     st.markdown("""
     <style>
 
-    /* metric 카드 공통 */
+    /* 카드 공통 */
     div[data-testid="stMetric"] {
-        background: #ffffff;
-        border: 1px solid #edf0f5;
-        padding: 20px 18px;
-        border-radius: 18px;
-        box-shadow: 0 5px 18px rgba(30, 41, 59, 0.06);
-        min-height: 135px;
-        transition: 0.2s ease;
+        padding: 22px 20px 24px 20px;
+        border-radius: 22px;
+        min-height: 150px;
+
+        border: 1px solid rgba(220, 225, 235, 0.65);
+
+        box-shadow:
+            0 8px 24px rgba(30, 41, 59, 0.06);
+
+        transition:
+            transform 0.20s ease,
+            box-shadow 0.20s ease;
     }
 
+    /* 마우스 올렸을 때 */
     div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 22px rgba(30, 41, 59, 0.10);
+        transform: translateY(-3px);
+
+        box-shadow:
+            0 12px 28px rgba(30, 41, 59, 0.10);
     }
 
-    /* 제목 */
+
+    /* ===================================== */
+    /* 카드별 파스텔 배경 */
+    /* ===================================== */
+
+
+    /* 1. 광고비 - 연한 핑크 */
+    div[data-testid="column"]:nth-of-type(1)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                145deg,
+                #ffffff 0%,
+                #fff4f5 100%
+            );
+
+        border-color: #ffe0e3;
+    }
+
+
+    /* 2. 노출 - 연한 블루 */
+    div[data-testid="column"]:nth-of-type(2)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                145deg,
+                #ffffff 0%,
+                #f1f7ff 100%
+            );
+
+        border-color: #dceaff;
+    }
+
+
+    /* 3. 클릭 - 연한 그린 */
+    div[data-testid="column"]:nth-of-type(3)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                145deg,
+                #ffffff 0%,
+                #effbf4 100%
+            );
+
+        border-color: #d7f0e1;
+    }
+
+
+    /* 4. CTR - 연한 퍼플 */
+    div[data-testid="column"]:nth-of-type(4)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                145deg,
+                #ffffff 0%,
+                #f6f2ff 100%
+            );
+
+        border-color: #e7ddff;
+    }
+
+
+    /* 5. 서비스 신청 - 연한 오렌지 */
+    div[data-testid="column"]:nth-of-type(5)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                145deg,
+                #ffffff 0%,
+                #fff8eb 100%
+            );
+
+        border-color: #f6e4c2;
+    }
+
+
+    /* 6. CPA - 연한 민트 */
+    div[data-testid="column"]:nth-of-type(6)
+    div[data-testid="stMetric"] {
+
+        background:
+            linear-gradient(
+                145deg,
+                #ffffff 0%,
+                #eefbf8 100%
+            );
+
+        border-color: #d2eee7;
+    }
+
+
+    /* ===================================== */
+    /* 카드 제목 */
+    /* ===================================== */
+
     div[data-testid="stMetricLabel"] {
         font-size: 14px;
-        font-weight: 600;
-        color: #667085;
-        margin-bottom: 10px;
+        font-weight: 650;
+        color: #596579;
+        margin-bottom: 14px;
     }
 
-    /* 숫자 */
+
+    /* ===================================== */
+    /* 메인 숫자 */
+    /* ===================================== */
+
     div[data-testid="stMetricValue"] {
-        font-size: 27px;
+        font-size: 29px;
         font-weight: 750;
         color: #172033;
-        letter-spacing: -0.5px;
+        letter-spacing: -0.7px;
+    }
+
+
+    /* 숫자가 한 줄 유지되도록 */
+    div[data-testid="stMetricValue"] > div {
+        white-space: nowrap;
+    }
+
+
+    /* ===================================== */
+    /* 모바일 / 작은 화면 */
+    /* ===================================== */
+
+    @media (max-width: 1000px) {
+
+        div[data-testid="stMetric"] {
+            min-height: 125px;
+            padding: 18px 16px;
+        }
+
+        div[data-testid="stMetricValue"] {
+            font-size: 23px;
+        }
+
     }
 
     </style>
     """, unsafe_allow_html=True)
 
-    # 6개 카드
+
+    # =========================
+    # 6개 실시간 카드
+    # =========================
+
     col1, col2, col3, col4, col5, col6 = st.columns(
         6,
         gap="medium"
     )
 
+
+    # 광고비
     with col1:
         st.metric(
             label="💳 오늘 광고비",
             value=f"{today_cost:,.0f}원"
         )
 
+
+    # 노출
     with col2:
         st.metric(
             label="👁️ 오늘 노출",
             value=f"{today_imp:,.0f}"
         )
 
+
+    # 클릭
     with col3:
         st.metric(
             label="🖱️ 오늘 클릭",
             value=f"{today_click:,.0f}"
         )
 
+
+    # CTR
     with col4:
         st.metric(
             label="📊 오늘 CTR",
             value=f"{today_ctr:.2f}%"
         )
 
+
+    # 서비스 신청
     with col5:
         st.metric(
             label="👥 오늘 서비스 신청",
             value=f"{today_signup:,.0f}"
         )
 
+
+    # CPA
     with col6:
         st.metric(
             label="🎯 오늘 CPA",
@@ -1714,6 +1869,7 @@ if not today_row.empty:
                 else "-"
             )
         )
+
 
 else:
     st.info("오늘 광고 데이터가 아직 없습니다.")
