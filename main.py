@@ -2365,10 +2365,14 @@ def load_google_sheet(sheet_id, gid):
     response = requests.get(csv_url, timeout=15)
     response.raise_for_status()
 
+    # 스프레드시트 상단 안내문 2줄을 제외하고
+    # 3번째 행(응답 ID, 응답 일시...)을 실제 헤더로 사용
     return pd.read_csv(
         BytesIO(response.content),
         dtype=str,
-        keep_default_na=False
+        keep_default_na=False,
+        skiprows=2,
+        header=0
     )
 
 
