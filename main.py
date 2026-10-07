@@ -245,65 +245,88 @@ def get_kakao_headers(ad_account_id):
 # Kakao API GET
 # ============================================================
 
+def _wait_kakao_report_limit(endpoint):
+    """
+    카카오 보고서 API는 광고계정/앱 기준 마지막 요청 후 5초 이내
+    재요청이 허용되지 않으므로 모든 /report 호출을 한 곳에서 제어합니다.
+    """
+    if not endpoint.endswith("/report"):
+        return
+
+    key = "_kakao_last_report_call"
+    last_call = st.session_state.get(key, 0.0)
+
+    if last_call:
+        elapsed = time.monotonic() - last_call
+        if elapsed < 5.2:
+            time.sleep(5.2 - elapsed)
+
+    st.session_state[key] = time.monotonic()
+
+
 def kakao_get(
     endpoint,
     ad_account_id,
     params=None
 ):
-
     url = f"{KAKAO_BASE_URL}{endpoint}"
+    headers = get_kakao_headers(ad_account_id)
 
-    headers = get_kakao_headers(
-        ad_account_id
-    )
+    # 보고서 API 호출 제한을 전체 앱에서 공통 관리
+    _wait_kakao_report_limit(endpoint)
 
-    try:
-
-        response = requests.get(
-            url,
-            headers=headers,
-            params=params,
-            timeout=30
-        )
-
-        if response.status_code != 200:
-
-            try:
-                error_data = response.json()
-            except Exception:
-                error_data = response.text
-
-            st.error(
-                f"카카오 API 오류 "
-                f"(HTTP {response.status_code})"
+    for attempt in range(2):
+        try:
+            response = requests.get(
+                url,
+                headers=headers,
+                params=params,
+                timeout=15
             )
 
-            with st.expander(
-                "오류 내용 확인"
-            ):
-                st.write(error_data)
+            # 호출 제한이면 한 번만 기다렸다가 자동 재시도
+            if response.status_code == 429 and attempt == 0:
+                time.sleep(5.5)
+                if endpoint.endswith("/report"):
+                    st.session_state["_kakao_last_report_call"] = time.monotonic()
+                continue
 
+            if response.status_code != 200:
+                try:
+                    error_data = response.json()
+                except Exception:
+                    error_data = response.text
+
+                st.error(
+                    f"카카오 API 오류 (HTTP {response.status_code}) · {endpoint}"
+                )
+
+                with st.expander("오류 내용 확인"):
+                    st.write(error_data)
+
+                return None
+
+            try:
+                return response.json()
+            except Exception:
+                return None
+
+        except requests.Timeout:
+            st.error(f"카카오 API 응답 시간 초과 · {endpoint}")
             return None
 
-        try:
-            return response.json()
-
-        except Exception:
+        except Exception as e:
+            st.error(f"카카오 API 연결 오류 · {endpoint}: {e}")
             return None
 
-    except Exception as e:
-
-        st.error(
-            f"카카오 API 연결 오류: {e}"
-        )
-
-        return None
+    return None
 
 
 # ============================================================
 # 캠페인 목록
 # ============================================================
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def fetch_campaigns(ad_account_id):
 
     data = kakao_get(
@@ -879,10 +902,6 @@ def load_kakao_data(
         and selected_month == today.month
     ):
 
-        # 카카오 보고서 API 호출 제한 대응 (광고계정/앱 기준 5초)
-        if not historical_df.empty:
-            time.sleep(5.1)
-
         today_raw = fetch_account_report(
             ad_account_id,
             today=True
@@ -947,6 +966,7 @@ def load_kakao_data(
 # 소재별 성과 조회
 # ============================================================
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def fetch_ad_groups(ad_account_id, campaign_id):
     data = kakao_get(
         "/adGroups",
@@ -961,6 +981,7 @@ def fetch_ad_groups(ad_account_id, campaign_id):
     return items if isinstance(items, list) else []
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def fetch_creatives(ad_account_id, ad_group_id):
     data = kakao_get(
         "/creatives",
@@ -975,6 +996,7 @@ def fetch_creatives(ad_account_id, ad_group_id):
     return items if isinstance(items, list) else []
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def fetch_creative_detail(ad_account_id, creative_id):
     data = kakao_get(
         f"/creatives/{creative_id}",
@@ -1140,20 +1162,9 @@ def load_creative_performance(
         for i in range(0, len(creative_ids), 100)
     ]
 
-    last_report_call = 0.0
-
-    def wait_report_limit():
-        nonlocal last_report_call
-        if last_report_call > 0:
-            elapsed = time.monotonic() - last_report_call
-            if elapsed < 5.1:
-                time.sleep(5.1 - elapsed)
-        last_report_call = time.monotonic()
-
     # 2) 과거 구간
     if month_start <= historical_end:
         for batch in batches:
-            wait_report_limit()
             report = fetch_creative_report(
                 ad_account_id,
                 batch,
@@ -1168,7 +1179,6 @@ def load_creative_performance(
     # 3) 오늘 구간
     if is_current_month:
         for batch in batches:
-            wait_report_limit()
             report = fetch_creative_report(
                 ad_account_id,
                 batch,
@@ -2596,20 +2606,57 @@ st.caption(
 )
 
 
-with st.spinner(
-    "소재별 광고 데이터를 불러오는 중입니다..."
-):
+creative_cache_key = (
+    f"{ad_account_id}_{selected_year}_{selected_month}"
+)
 
-    creative_df, creative_list = (
-        load_creative_performance(
+if "creative_results" not in st.session_state:
+    st.session_state["creative_results"] = {}
+
+creative_loaded = (
+    creative_cache_key in st.session_state["creative_results"]
+)
+
+load_creative_button = st.button(
+    "🎨 소재별 성과 불러오기",
+    key=f"load_creative_{creative_cache_key}",
+    use_container_width=True
+)
+
+if load_creative_button:
+    with st.spinner(
+        "소재 목록과 성과를 불러오는 중입니다. "
+        "카카오 API 제한 때문에 소재가 많으면 시간이 걸릴 수 있습니다..."
+    ):
+        creative_df, creative_list = load_creative_performance(
             ad_account_id,
             selected_year,
             selected_month
         )
+
+    st.session_state["creative_results"][creative_cache_key] = (
+        creative_df,
+        creative_list
+    )
+    creative_loaded = True
+
+if creative_loaded:
+    creative_df, creative_list = (
+        st.session_state["creative_results"][creative_cache_key]
+    )
+else:
+    creative_df = pd.DataFrame()
+    creative_list = []
+    st.info(
+        "소재별 성과는 API 호출량이 많아 자동으로 불러오지 않습니다. "
+        "위 버튼을 눌렀을 때만 조회합니다."
     )
 
 
-if (
+if not creative_loaded:
+    pass
+
+elif (
     creative_df is None
     or creative_df.empty
 ):
