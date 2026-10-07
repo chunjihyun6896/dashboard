@@ -2351,7 +2351,7 @@ GOOGLE_SHEET_ID = "1NOMPUooMrE8KKRdZT0C-q0tVeLTywZCXYKOg4BeX3Hw"
 GOOGLE_SHEET_GID = "1466561845"
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def load_google_sheet(sheet_id, gid):
     """
     공개(링크가 있는 모든 사용자 - 뷰어) Google Sheet를 CSV로 읽습니다.
@@ -2376,29 +2376,36 @@ def load_google_sheet(sheet_id, gid):
     )
 
 
-st.markdown("---")
-st.markdown("## 📋 정원파트너스(DB)")
-st.caption("Google 스프레드시트 연동 데이터 · 최대 60초 간격으로 최신 내용 반영")
+@st.fragment(run_every=30)
+def google_sheet_section():
+    st.markdown("---")
+    st.markdown("## 📋 정원파트너스(DB)")
+    st.caption("Google 스프레드시트 데이터만 30초마다 자동 갱신합니다.")
 
-try:
-    with st.spinner("스프레드시트 데이터를 불러오는 중입니다..."):
-        sheet_df = load_google_sheet(
-            GOOGLE_SHEET_ID,
-            GOOGLE_SHEET_GID
+    try:
+        with st.spinner("스프레드시트 데이터를 불러오는 중입니다..."):
+            sheet_df = load_google_sheet(
+                GOOGLE_SHEET_ID,
+                GOOGLE_SHEET_GID
+            )
+
+        sheet_checked_at = now_kst().strftime("%Y-%m-%d %H:%M:%S")
+        st.caption(f"🟢 최근 데이터 조회: {sheet_checked_at}")
+
+        # 데이터가 0건이어도 헤더는 항상 표시
+        st.dataframe(
+            sheet_df,
+            use_container_width=True,
+            hide_index=True,
+            height=520
         )
 
-    # 데이터가 0건이어도 헤더는 항상 표시
-    st.dataframe(
-        sheet_df,
-        use_container_width=True,
-        hide_index=True,
-        height=520
-    )
+    except requests.Timeout:
+        st.warning("Google 스프레드시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요.")
 
-except requests.Timeout:
-    st.warning("Google 스프레드시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요.")
+    except Exception as e:
+        st.error("Google 스프레드시트 데이터를 불러오지 못했습니다.")
+        with st.expander("오류 내용 확인"):
+            st.write(str(e))
 
-except Exception as e:
-    st.error("Google 스프레드시트 데이터를 불러오지 못했습니다.")
-    with st.expander("오류 내용 확인"):
-        st.write(str(e))
+google_sheet_section()
