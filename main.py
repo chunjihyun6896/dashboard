@@ -138,19 +138,19 @@ ADVERTISERS = {
 
     "GHB": {
         "ad_account_id": "987505"
-    }
+    },
 
     "법률사무소 금하": {
         "ad_account_id": "1001864"
-    }
+    },
 
     "법무법인 대한": {
         "ad_account_id": "996079"
-    }
+    },
 
     "노빌리언": {
         "ad_account_id": "996206"
-    }
+    },
 
     "따뜻한하루": {
         "ad_account_id": "958077"
