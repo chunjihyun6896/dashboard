@@ -2362,7 +2362,7 @@ ADVERTISER_SHEETS = {
     "996079": "",       # 법무법인 대한
     "996206": "",       # 노빌리언
     "1006207": "https://docs.google.com/spreadsheets/d/1NOMPUooMrE8KKRdZT0C-q0tVeLTywZCXYKOg4BeX3Hw/edit?gid=1466561845#gid=1466561845",  # 정원파트너스
-    "1006970": "",      # 포벤처스
+    "1006970": "https://docs.google.com/spreadsheets/d/1LZwm8j9uavRQPonG1qjIgfU8iNZIDjADB_yeJYg6KTU/edit?gid=1979693217#gid=1979693217",      # 포벤처스
     "958077": "",       # 따뜻한하루
 }
 
