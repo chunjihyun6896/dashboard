@@ -5,6 +5,8 @@ import time
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from io import BytesIO
+from urllib.parse import urlparse, parse_qs
+import re
 
 
 # ============================================================
@@ -157,6 +159,9 @@ ADVERTISERS = {
         "ad_account_id": "1006207"
     },
 
+    "포벤처스": {
+        "ad_account_id": "1006970"
+    },
 
     "따뜻한하루": {
         "ad_account_id": "958077"
@@ -2344,68 +2349,82 @@ st.caption(
 
 
 # ============================================================
-# Google 스프레드시트 연동 - 정원파트너스(DB)
+# 광고계정별 Google 스프레드시트 설정 (여기만 수정하세요)
+# 키 = 카카오 광고계정 번호, 값 = Google Sheet 전체 링크
+# 아직 없는 광고주는 빈 문자열 ""로 두세요.
 # ============================================================
 
-GOOGLE_SHEET_ID = "1NOMPUooMrE8KKRdZT0C-q0tVeLTywZCXYKOg4BeX3Hw"
-GOOGLE_SHEET_GID = "1466561845"
+ADVERTISER_SHEETS = {
+    "995724": "",       # 리만
+    "558725": "",       # 구피디
+    "987505": "",       # GHB
+    "1001864": "",      # 법률사무소 금하
+    "996079": "",       # 법무법인 대한
+    "996206": "",       # 노빌리언
+    "1006207": "https://docs.google.com/spreadsheets/d/1NOMPUooMrE8KKRdZT0C-q0tVeLTywZCXYKOg4BeX3Hw/edit?gid=1466561845#gid=1466561845",  # 정원파트너스
+    "1006970": "",      # 포벤처스
+    "958077": "",       # 따뜻한하루
+}
+
+# 각 시트에서 실제 헤더 위에 있는 안내문 줄 수
+# 기본값 2: 기존 정원파트너스와 동일. 다른 시트는 필요에 따라 0, 1 등으로 설정
+SHEET_SKIP_ROWS = {
+    "1006207": 2,
+}
+
+
+def parse_google_sheet_url(url):
+    parsed = urlparse(url.strip())
+    if parsed.hostname not in ("docs.google.com",):
+        raise ValueError("Google 스프레드시트 링크를 입력해주세요.")
+    match = re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", parsed.path)
+    if not match:
+        raise ValueError("스프레드시트 주소에서 문서 ID를 찾을 수 없습니다.")
+    query = parse_qs(parsed.query)
+    fragment = parse_qs(parsed.fragment)
+    gid = (query.get("gid") or fragment.get("gid") or ["0"])[0]
+    if not gid.isdigit():
+        raise ValueError("스프레드시트 gid 값이 올바르지 않습니다.")
+    return match.group(1), gid
 
 
 @st.cache_data(ttl=30, show_spinner=False)
-def load_google_sheet(sheet_id, gid):
-    """
-    공개(링크가 있는 모든 사용자 - 뷰어) Google Sheet를 CSV로 읽습니다.
-    60초 캐시 후 최신 데이터를 다시 조회합니다.
-    """
-    csv_url = (
-        f"https://docs.google.com/spreadsheets/d/{sheet_id}/export"
-        f"?format=csv&gid={gid}"
-    )
-
-    response = requests.get(csv_url, timeout=15)
+def load_google_sheet(sheet_id, gid, skip_rows):
+    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+    response = requests.get(url, timeout=15)
     response.raise_for_status()
-
-    # 스프레드시트 상단 안내문 2줄을 제외하고
-    # 3번째 행(응답 ID, 응답 일시...)을 실제 헤더로 사용
     return pd.read_csv(
         BytesIO(response.content),
         dtype=str,
         keep_default_na=False,
-        skiprows=2,
-        header=0
+        skiprows=skip_rows,
+        header=0,
     )
 
 
 @st.fragment(run_every=30)
 def google_sheet_section():
     st.markdown("---")
-    st.markdown("## 📋 정원파트너스(DB)")
-    st.caption("Google 스프레드시트 데이터만 30초마다 자동 갱신합니다.")
+    st.markdown(f"## 📋 {advertiser_name}(DB)")
+    sheet_link = ADVERTISER_SHEETS.get(str(ad_account_id), "").strip()
+    if not sheet_link:
+        st.info("등록된 Google 스프레드시트가 없습니다. 코드 상단의 ADVERTISER_SHEETS에 링크를 추가하세요.")
+        return
 
+    st.caption("해당 광고주의 Google 스프레드시트만 30초마다 자동 갱신합니다.")
     try:
+        sheet_id, gid = parse_google_sheet_url(sheet_link)
+        skip_rows = SHEET_SKIP_ROWS.get(str(ad_account_id), 0)
         with st.spinner("스프레드시트 데이터를 불러오는 중입니다..."):
-            sheet_df = load_google_sheet(
-                GOOGLE_SHEET_ID,
-                GOOGLE_SHEET_GID
-            )
-
-        sheet_checked_at = now_kst().strftime("%Y-%m-%d %H:%M:%S")
-        st.caption(f"🟢 최근 데이터 조회: {sheet_checked_at}")
-
-        # 데이터가 0건이어도 헤더는 항상 표시
-        st.dataframe(
-            sheet_df,
-            use_container_width=True,
-            hide_index=True,
-            height=520
-        )
-
+            sheet_df = load_google_sheet(sheet_id, gid, skip_rows)
+        st.caption(f"🟢 최근 데이터 확인: {now_kst().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.dataframe(sheet_df, use_container_width=True, hide_index=True, height=520)
     except requests.Timeout:
-        st.warning("Google 스프레드시트 응답이 지연되고 있습니다. 잠시 후 새로고침해주세요.")
-
+        st.warning("Google 스프레드시트 응답이 지연되고 있습니다.")
     except Exception as e:
         st.error("Google 스프레드시트 데이터를 불러오지 못했습니다.")
         with st.expander("오류 내용 확인"):
             st.write(str(e))
+
 
 google_sheet_section()
