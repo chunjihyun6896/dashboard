@@ -2366,11 +2366,8 @@ ADVERTISER_SHEETS = {
     "958077": "",       # 따뜻한하루
 }
 
-# 각 시트에서 실제 헤더 위에 있는 안내문 줄 수
-# 기본값 2: 기존 정원파트너스와 동일. 다른 시트는 필요에 따라 0, 1 등으로 설정
-SHEET_SKIP_ROWS = {
-    "1006207": 2,
-}
+# 모든 광고주 시트: 상단 안내문 2줄 제외, 3번째 줄을 헤더로 사용
+SHEET_HEADER_SKIP_ROWS = 2
 
 
 def parse_google_sheet_url(url):
@@ -2414,7 +2411,7 @@ def google_sheet_section():
     st.caption("해당 광고주의 Google 스프레드시트만 30초마다 자동 갱신합니다.")
     try:
         sheet_id, gid = parse_google_sheet_url(sheet_link)
-        skip_rows = SHEET_SKIP_ROWS.get(str(ad_account_id), 0)
+        skip_rows = SHEET_HEADER_SKIP_ROWS
         with st.spinner("스프레드시트 데이터를 불러오는 중입니다..."):
             sheet_df = load_google_sheet(sheet_id, gid, skip_rows)
         st.caption(f"🟢 최근 데이터 확인: {now_kst().strftime('%Y-%m-%d %H:%M:%S')}")
