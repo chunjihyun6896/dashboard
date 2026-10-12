@@ -2367,7 +2367,7 @@ ADVERTISER_SHEETS = {
     "996206": "",       # 노빌리언
     "1006207": "https://docs.google.com/spreadsheets/d/1NOMPUooMrE8KKRdZT0C-q0tVeLTywZCXYKOg4BeX3Hw/edit?gid=1466561845#gid=1466561845",  # 정원파트너스
     "1006970": "https://docs.google.com/spreadsheets/d/1ewSNvn6T5PRgNXLb-ZF75aDz7PZjkyrxZMMocfKPuyA/edit?gid=464653616#gid=464653616",      # 포벤처스
-    "1007679": "https://docs.google.com/spreadsheets/d/1XRnwC_e9ijdvBjLf6WVE04uxdd6jPTaL0M6TkJ34gFs/edit?gid=195870487#gid=195870487",      # 위드원
+    "1007679": "https://docs.google.com/spreadsheets/d/13IBilEw_ScR443ZgnqqnrhyVtgBuzkfbQwnh2O4XDmo/htmlview#gid=1338897988",      # 위드원
     "958077": "",       # 따뜻한하루
 }
 
