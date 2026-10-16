@@ -131,8 +131,8 @@ st.markdown(
 # ============================================================
 
 ADVERTISERS = {
-    "리만": {
-        "ad_account_id": "995724"
+    "단군비즈": {
+        "ad_account_id": "1011158"
     },
 
     "구피디": {
@@ -2359,7 +2359,7 @@ st.caption(
 # ============================================================
 
 ADVERTISER_SHEETS = {
-    "995724": "",       # 리만
+    "1011158": "https://docs.google.com/spreadsheets/d/14HUlVOrV7yQzZAIRY67xgw4g4KR_C_yHq4_5tss0oKw/edit?gid=775776045#gid=775776045",       # 단군비즈
     "558725": "",       # 구피디
     "987505": "",       # GHB
     "1001864": "",      # 법률사무소 금하
@@ -2367,7 +2367,7 @@ ADVERTISER_SHEETS = {
     "996206": "",       # 노빌리언
     "1006207": "https://docs.google.com/spreadsheets/d/1NOMPUooMrE8KKRdZT0C-q0tVeLTywZCXYKOg4BeX3Hw/edit?gid=1466561845#gid=1466561845",  # 정원파트너스
     "1006970": "https://docs.google.com/spreadsheets/d/1ewSNvn6T5PRgNXLb-ZF75aDz7PZjkyrxZMMocfKPuyA/edit?gid=464653616#gid=464653616",      # 포벤처스
-    "1007679": "https://docs.google.com/spreadsheets/d/13IBilEw_ScR443ZgnqqnrhyVtgBuzkfbQwnh2O4XDmo/htmlview#gid=1338897988",      # 위드원
+    "1007679": "https://docs.google.com/spreadsheets/d/13IBilEw_ScR443ZgnqqnrhyVtgBuzkfbQwnh2O4XDmo/edit?gid=1338897988#gid=1338897988",      # 위드원
     "958077": "",       # 따뜻한하루
 }
 
